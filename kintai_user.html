@@ -55,9 +55,11 @@
   <div id="appUser" hidden>
     <!-- ===== ホーム ===== -->
     <div id="viewHome">
-      <!-- お知らせ（時刻の上・見出しの横に横スクロール表示） -->
+      <!-- お知らせ（見出しをクリックで一覧ポップアップ。区切り線の右にメッセージを横スクロール表示） -->
       <section class="panel" style="margin-top:0">
-        <div class="panel-head"><h2>📢 お知らせ</h2>
+        <div class="panel-head" style="justify-content:flex-start;gap:0">
+          <h2 class="news-head-h2" onclick="openNewsListModal()" title="お知らせ一覧を開く">📢 お知らせ</h2>
+          <span class="news-divider" style="margin:2px 16px"></span>
           <div class="news-strip" id="newsBox"></div>
         </div>
       </section>
@@ -251,14 +253,14 @@
       <button class="menu-item" onclick="menuGo('contract')"><span class="mi-ic">📄</span>雇用契約</button>
       <button class="menu-item" onclick="menuGo('calendar')"><span class="mi-ic">🗓</span>勤怠カレンダー</button>
       <button class="menu-item" onclick="menuGo('expense')"><span class="mi-ic">🧾</span>経費申請（交通費・経費）</button>
-      <button class="menu-item" onclick="menuGo('salary')"><span class="mi-ic">📑</span>給与証明書</button>
+      <button class="menu-item" onclick="menuGo('salary')"><span class="mi-ic">📑</span>給与明細</button>
       <button class="menu-item" onclick="menuGo('timesheet')"><span class="mi-ic">🖨️</span>勤怠表PDF</button>
     </div>
     <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('menuModal').hidden=true">閉じる</button></div>
   </div>
 </div>
 
-<!-- 勤怠表/給与証明書 一覧 -->
+<!-- 勤怠表/給与明細 一覧 -->
 <div class="overlay" id="docListModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" style="max-width:560px">
     <h3 id="dlTitle">勤怠表</h3>
@@ -268,12 +270,21 @@
     <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('docListModal').hidden=true">閉じる</button></div>
   </div>
 </div>
-<!-- 勤怠表/給与証明書 詳細 -->
+<!-- 勤怠表/給与明細 詳細 -->
 <div class="overlay" id="docDetailModal" hidden>
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="ddTitle"></h3>
     <div id="ddBody"></div>
     <div class="modal-actions"><button class="mini" onclick="document.getElementById('docDetailModal').hidden=true">戻る</button><button class="mini solid" id="ddPdf">PDFダウンロード</button></div>
+  </div>
+</div>
+
+<!-- お知らせ一覧 -->
+<div class="overlay" id="newsListModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:520px">
+    <h3>📢 お知らせ一覧</h3>
+    <div id="newsListBox" style="max-height:62vh;overflow:auto"></div>
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('newsListModal').hidden=true">閉じる</button></div>
   </div>
 </div>
 
@@ -376,9 +387,9 @@ function menuGo(what){
   else if(what==='timesheet') openDocList('timesheet');
 }
 
-/* ---- 勤怠表 / 給与証明書：1年分の一覧 → 月を選んで詳細・PDF ---- */
+/* ---- 勤怠表 / 給与明細：1年分の一覧 → 月を選んで詳細・PDF ---- */
 let _dlType='timesheet',_dlYear=null;
-function openDocList(type){ _dlType=type; _dlYear=viewMonthDate.getFullYear(); document.getElementById('dlTitle').textContent=(type==='salary')?'📑 給与証明書':'🖨️ 勤怠表'; renderDocList(); document.getElementById('docListModal').hidden=false; }
+function openDocList(type){ _dlType=type; _dlYear=viewMonthDate.getFullYear(); document.getElementById('dlTitle').textContent=(type==='salary')?'📑 給与明細':'🖨️ 勤怠表'; renderDocList(); document.getElementById('docListModal').hidden=false; }
 function dlShiftYear(n){ const max=new Date().getFullYear(),min=max-4; _dlYear=Math.min(max,Math.max(min,_dlYear+n)); renderDocList(); }
 function renderDocList(){
   document.getElementById('dlYear').textContent=_dlYear+'年';
@@ -396,7 +407,7 @@ function renderDocList(){
 function dlPdf(mk){ if(_dlType==='salary')printSalaryCert(mk); else printTimesheet(mk); }
 function dlDetail(mk){
   const [y,m]=mk.split('-').map(Number); const agg=aggregate(mk);
-  document.getElementById('ddTitle').textContent=`${y}年${m}月 の${_dlType==='salary'?'給与証明書':'勤怠表'}`;
+  document.getElementById('ddTitle').textContent=`${y}年${m}月 の${_dlType==='salary'?'給与明細':'勤怠表'}`;
   let body;
   if(_dlType==='salary'){ const est=salaryEstimate(mk);
     body=`<div class="contract-card">
@@ -406,13 +417,7 @@ function dlDetail(mk){
       <div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}時間</div></div>
       <div class="ci full"><div class="l">支給見込額</div><div class="v">${est.text}（${est.basis}）</div></div></div>`;
   } else {
-    body=`<div class="contract-card">
-      <div class="ci"><div class="l">出勤日数</div><div class="v">${agg.workDays}日</div></div>
-      <div class="ci"><div class="l">休暇日数</div><div class="v">${agg.leaveDays}日</div></div>
-      <div class="ci"><div class="l">総実働</div><div class="v">${fmtH(agg.workMin)}h</div></div>
-      <div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}h</div></div>
-      <div class="ci"><div class="l">深夜</div><div class="v">${fmtH(agg.niMin)}h</div></div>
-      <div class="ci"><div class="l">休憩合計</div><div class="v">${fmtH(agg.brMin)}h</div></div></div>`;
+    body=`<div style="max-height:58vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff">${timesheetDocHTML(mk)}</div>`;
   }
   document.getElementById('ddBody').innerHTML=body;
   document.getElementById('ddPdf').onclick=()=>dlPdf(mk);
@@ -730,12 +735,20 @@ function openNewsDetail(id){const n=getNews().find(x=>x.id===id);if(!n)return;
   document.getElementById("ndDate").textContent=new Date(n.ts).toLocaleString('ja-JP');
   document.getElementById("ndBody").textContent=n.body||"（本文なし）";
   document.getElementById("newsDetailModal").hidden=false;}
+/* 「📢 お知らせ」見出しクリックで、過去のお知らせを一覧表示（クリックで詳細） */
+function openNewsListModal(){
+  const list=newsSorted();const box=document.getElementById("newsListBox");
+  box.innerHTML=list.length?`<div class="newslist">`+list.map(n=>`<div class="newsitem ${n.pinned?'pinned':''}" style="cursor:pointer" onclick="document.getElementById('newsListModal').hidden=true;openNewsDetail('${n.id}')">
+    <div class="nh">${n.pinned?'<span class="pin">重要</span>':''}<span class="nt">${esc(n.title)}</span><span class="nd">${new Date(n.ts).toLocaleDateString('ja-JP')}</span></div>
+    ${n.body?`<div class="nb">${esc(n.body)}</div>`:''}</div>`).join("")+`</div>`:`<div class="empty">お知らせはありません</div>`;
+  document.getElementById("newsListModal").hidden=false;
+}
 function renderReminder(){
   const box=document.getElementById("reminderBox");const r=submissionReminder(currentUser());
   if(!r){box.hidden=true;box.innerHTML="";return;}
   box.hidden=false;
-  box.innerHTML=`<div class="reminder"><span class="ic">📢</span><div><div>${esc(r.msg)}</div>
-    <div class="r-actions"><button class="mini solid warn" onclick="goSubmit('${r.mk}')">今すぐ提出する</button></div></div></div>`;
+  box.innerHTML=`<div class="reminder ${r.stage==='over'?'reminder-over':''}"><span class="ic">${r.stage==='over'?'⚠':'📢'}</span><div><div>${esc(r.msg)}</div>
+    <div class="r-actions"><button class="mini solid ${r.stage==='over'?'danger':'warn'}" onclick="goSubmit('${r.mk}')">今すぐ提出する</button></div></div></div>`;
 }
 function goSubmit(mk){const [y,m]=mk.split("-").map(Number);viewMonthDate=new Date(y,m-1,1);renderAll();openSubmitDialog();}
 

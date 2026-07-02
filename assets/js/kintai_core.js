@@ -295,7 +295,8 @@ function printContract(){
     <div class="note">※本書は勤怠管理ツールから出力した控えです。正式な労働条件通知書・雇用契約書の記載事項・様式は就業規則および社会保険労務士にご確認ください。</div>
   </div>`);
 }
-function printTimesheet(mkey){
+/* 勤怠表のドキュメントHTML（印刷にも画面プレビューにも使う） */
+function timesheetDocHTML(mkey){
   const emp=userLabel(CURRENT_USER); const [y,m]=mkey.split("-").map(Number);
   const recs=DB.records(); const agg=aggregate(mkey);
   let rows="";
@@ -307,14 +308,15 @@ function printTimesheet(mkey){
       bT=complete?Math.round(breakMs(r)/60000):""; wT=complete?fmtDur(workedMs(r)):""; oT2=complete?fmtDur(overtimeMin(r)*60000):""; }
     rows+=`<tr><td>${m}/${d}</td><td>${dow}</td><td>${kind}</td><td>${iT}</td><td>${oT}</td><td>${bT}</td><td>${wT}</td><td>${oT2}</td></tr>`;
   }
-  printDoc(`<div class="pdoc"><h1>勤 怠 表</h1>
+  return `<div class="pdoc"><h1>勤 怠 表</h1>
     <div class="psub">${y}年${m}月分　氏名：${esc(emp)||"　　　　　"}</div>
     <table class="tsheet"><thead><tr><th>日</th><th>曜</th><th>区分</th><th>出勤</th><th>退勤</th><th>休憩(分)</th><th>実働</th><th>時間外</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tfoot"><td colspan="6">合計</td><td>${fmtH(agg.workMin)}h</td><td>${fmtH(agg.otMin)}h</td></tr></tfoot></table>
     <div class="note">出勤日数 ${agg.workDays}日／休暇 ${agg.leaveDays}日／深夜 ${fmtH(agg.niMin)}h／休日勤務 ${agg.holidayDays}日。時間外は1日8時間超、深夜は22:00〜翌5:00の実働。割増賃金の計算は社会保険労務士にご確認ください。</div>
-  </div>`);
+  </div>`;
 }
+function printTimesheet(mkey){ printDoc(timesheetDocHTML(mkey)); }
 
 /* 当月の支給見込額（雇用契約の賃金 × 勤怠実績からの概算） */
 function salaryEstimate(mk){
@@ -324,7 +326,7 @@ function salaryEstimate(mk){
   if(c.wageType==="monthly")return {text:yen(amt), basis:`月給${yen(amt)}`};
   return {text:"—", basis:"賃金未登録"};
 }
-/* 給与証明書（勤怠記録＋雇用契約から作成する参考書類） */
+/* 給与明細（勤怠記録＋雇用契約から作成する参考書類） */
 function printSalaryCert(mk){
   const c=getContract(); const emp=c.employee||userLabel(CURRENT_USER)||"";
   const [y,m]=mk.split("-").map(Number); const agg=aggregate(mk);
@@ -337,7 +339,7 @@ function printSalaryCert(mk){
     ["時間外労働",`${fmtH(agg.otMin)}時間`],["支給見込額",est+(basis?`（${basis}）`:"")]];
   const body=rows.map(([l,v])=>`<tr><th>${l}</th><td>${esc(v)||"—"}</td></tr>`).join("");
   const today=new Date().toLocaleDateString('ja-JP');
-  printDoc(`<div class="pdoc"><h1>給 与 証 明 書</h1>
+  printDoc(`<div class="pdoc"><h1>給 与 明 細</h1>
     <div class="psub">発行日：${today}</div>
     <table>${body}</table>
     <div class="sign">上記のとおり相違ないことを証明します。<br><br>事業者：__________________________　㊞</div>
@@ -386,17 +388,20 @@ function missingPunchDays(username, monthsBack){
   return miss;
 }
 /* 提出リマインド: 固定日(submitDay)以降で当月未提出/差し戻し */
+/* 勤怠表の提出リマインド。
+   - まず提出済みか判定し、提出済み(submitted/approved/paid)なら何も出さない。
+   - 未提出/差し戻し のとき、期限の PRE_DAYS 日前〜当日は「事前」、期限を過ぎたら「期限切れ」を返す。 */
 function submissionReminder(username){
   const today=new Date(); const day=today.getDate();
   const y=today.getFullYear(), m=today.getMonth()+1;
-  const sd=submitDayFor(y,m);
-  const mk=monthKey(today);
+  const sd=submitDayFor(y,m); const mk=monthKey(today);
   const subs=getData(username).submits||{};
   const st=subs[mk]?subs[mk].status:"none";
-  if(day>=sd.day && (st==="none"||st==="rejected")){
-    const label = sd.eom ? `月末（${sd.day}日）` : `${sd.day}日`;
-    return { mk, day:sd.day, status:st, msg:`毎月${label}は勤怠表の提出日です。${mkLabel(mk)}分の勤怠表を提出してください。` };
-  }
+  if(st!=="none" && st!=="rejected") return null;   // 既に提出されているのでリマインド不要
+  const label = sd.eom ? `月末（${sd.day}日）` : `${sd.day}日`;
+  const PRE_DAYS=3;
+  if(day>sd.day) return { mk, stage:"over", day:sd.day, status:st, msg:`${mkLabel(mk)}分の勤怠表は提出期限（毎月${label}）を過ぎています。至急提出してください。` };
+  if(day>=sd.day-PRE_DAYS) return { mk, stage:"pre", day:sd.day, status:st, msg:`${mkLabel(mk)}分の勤怠表の提出期限が近づいています（毎月${label}まで）。お早めに提出してください。` };
   return null;
 }
 /* ===== 交通費（transport） ===== */
@@ -550,7 +555,7 @@ global.Kintai = {
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
   AK, hashPw, AUTH, authState, currentRole, getAccounts, getAccount, saveAccounts, hasRoleAccount, upsertWorkerAccount,
   setHeaderName, showAuth, gotoLogin, gotoSignup, doSetup, doLogin, logout, openSettings, saveSettings,
-  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert, salaryEstimate,
+  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, timesheetDocHTML, printSalaryCert, salaryEstimate,
   getCfg, saveCfg, submitDayFor, planDeadlineFor,
   transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,

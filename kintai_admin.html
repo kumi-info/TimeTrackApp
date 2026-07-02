@@ -52,30 +52,33 @@
   </div>
 
   <div id="adminContent" hidden>
-    <!-- 労働者の選択 -->
-    <div class="workerbar">
-      <label>労働者</label>
-      <select id="workerSel" onchange="onWorkerChange()"></select>
-      <span class="who-mail" id="workerMail"></span>
-      <div class="tools" style="margin-left:auto;display:flex;gap:8px">
-        <button class="mini" onclick="openWorker()">＋ 労働者を追加</button>
-        <button class="mini danger" onclick="confirmDeleteWorker()">選択中を削除</button>
-      </div>
+    <!-- カテゴリメニュー -->
+    <div class="admmenu">
+      <button class="mini" onclick="admShowMain('adminRecords')">📊 勤怠</button>
+      <button class="mini" onclick="admShowMain('trPanel')">🧾 経費</button>
+      <button class="mini" onclick="admShowMain('sumGrid')">📑 給与</button>
+      <button class="mini solid" onclick="admShowWorkers()">👥 労働者一覧</button>
+      <button class="mini" onclick="admShowMain('newsAdminBox')">📢 お知らせ</button>
+      <button class="mini" onclick="admShowMain('cfgSubmitDay')">⚙ 設定</button>
     </div>
 
-    <!-- 労働者一覧・管理 -->
-    <section class="panel" id="workerListPanel">
-      <div class="panel-head"><h2>👥 労働者一覧</h2>
-        <div class="tools"><button class="mini" onclick="openWorker()">＋ 労働者を追加</button></div>
-      </div>
-      <div class="panel-body"><div id="workerListBox"></div></div>
-    </section>
+    <div id="viewMain">
+      <!-- 通知センター（労働者の上に配置） -->
+      <section class="panel" id="notifPanel" style="margin-top:12px">
+        <div class="panel-head"><h2>🔔 通知</h2></div>
+        <div class="panel-body"><div id="notifBox"></div></div>
+      </section>
 
-    <!-- 通知センター -->
-    <section class="panel" id="notifPanel">
-      <div class="panel-head"><h2>🔔 通知</h2></div>
-      <div class="panel-body"><div id="notifBox"></div></div>
-    </section>
+      <!-- 労働者の選択 -->
+      <div class="workerbar">
+        <label>労働者</label>
+        <select id="workerSel" onchange="onWorkerChange()"></select>
+        <span class="who-mail" id="workerMail"></span>
+        <div class="tools" style="margin-left:auto;display:flex;gap:8px">
+          <button class="mini" onclick="openWorker()">＋ 労働者を追加</button>
+          <button class="mini" onclick="deselectWorker()">選択を解除</button>
+        </div>
+      </div>
 
     <div class="panel-head" style="border:0;padding:0 2px 4px;margin-top:16px">
       <h2 style="font-size:1.05rem">📊 月次サマリー・管理</h2>
@@ -84,7 +87,7 @@
 
     <section class="panel">
       <div class="panel-head"><h2>集計</h2>
-        <div class="tools"><button class="mini" onclick="openDocList('timesheet')">勤怠表</button><button class="mini" onclick="openDocList('salary')">給与証明書</button><button class="mini" onclick="downloadCSV(adminMonth())">CSV出力</button></div>
+        <div class="tools"><button class="mini" onclick="openDocList('timesheet')">勤怠表</button><button class="mini" onclick="openDocList('salary')">給与明細</button><button class="mini" onclick="downloadCSV(adminMonth())">CSV出力</button></div>
       </div>
       <div class="panel-body"><div class="sumgrid" id="sumGrid"></div>
         <p class="note" style="margin-top:12px;color:var(--muted);font-size:.74rem">時間外＝1日8時間超の実働。深夜＝22:00〜翌5:00の実働。休日勤務＝稼働日でない日/日曜の勤務（目安）。割増賃金の計算は社労士にご確認ください。</p>
@@ -177,6 +180,22 @@
       勤怠記録は労働基準法109条により原則5年（当分の間3年）の保存義務があります。「全消去」の前にCSV/PDFでバックアップを取ってください。割増賃金の計算・36協定・就業規則の適用は社会保険労務士にご確認ください（本ツールは記録・集計の補助であり法的助言ではありません）。
     </div>
     <div class="crosslink" style="margin-top:14px">打刻はこちら → <a href="kintai_user.html">ユーザー画面を開く</a></div>
+    </div><!-- /viewMain -->
+
+    <!-- 労働者一覧（メニュー「👥 労働者一覧」から遷移。検索・絞り込み可、行クリックで表示） -->
+    <div id="viewAdminWorkers" hidden>
+      <div style="margin:8px 0"><button class="mini" onclick="admShowMain()">← 戻る</button></div>
+      <section class="panel">
+        <div class="panel-head"><h2>👥 労働者一覧</h2><div class="tools"><button class="mini solid" onclick="openWorker()">＋ 労働者を追加</button></div></div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <input id="wlSearch" placeholder="名前・ユーザー名・メールで検索" oninput="renderWorkerList()" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit">
+            <select id="wlFilter" onchange="renderWorkerList()" style="padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-weight:700"><option value="">すべて</option><option value="login">ログイン可のみ</option><option value="nologin">ログイン未設定のみ</option></select>
+          </div>
+          <div id="workerListBox"></div>
+        </div>
+      </section>
+    </div>
   </div>
 
   <footer>データはこのブラウザ内に保存されます</footer>
@@ -332,7 +351,7 @@
   </div>
 </div>
 
-<!-- 勤怠表/給与証明書 一覧 -->
+<!-- 勤怠表/給与明細 一覧 -->
 <div class="overlay" id="docListModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" style="max-width:560px">
     <h3 id="dlTitle">勤怠表</h3>
@@ -342,7 +361,7 @@
     <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('docListModal').hidden=true">閉じる</button></div>
   </div>
 </div>
-<!-- 勤怠表/給与証明書 詳細 -->
+<!-- 勤怠表/給与明細 詳細 -->
 <div class="overlay" id="docDetailModal" hidden>
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="ddTitle"></h3>
@@ -393,20 +412,33 @@ function ensureAdminUser(){
 }
 function renderWorkerBar(){
   const users=getUsers();const keys=Object.keys(users);
-  document.getElementById("workerSel").innerHTML=keys.map(u=>`<option value="${u}" ${u===adminUser?'selected':''}>${esc(userLabel(u))}（${u}）</option>`).join("");
-  document.getElementById("workerMail").textContent=adminUser?(userEmail(adminUser)||"メール未登録"):"労働者が未登録です";
+  document.getElementById("workerSel").innerHTML=`<option value="" ${!adminUser?'selected':''}>（未選択）</option>`+keys.map(u=>`<option value="${u}" ${u===adminUser?'selected':''}>${esc(userLabel(u))}（${u}）</option>`).join("");
+  document.getElementById("workerMail").textContent=!keys.length?"労働者が未登録です":(adminUser?(userEmail(adminUser)||"メール未登録"):"（労働者を選択してください）");
 }
-function onWorkerChange(){ adminUser=document.getElementById("workerSel").value; saveSel(adminUser); setCurrentUser(adminUser); renderAdmin(); }
-/* 労働者一覧（名簿）を表示。各行から 表示切替 / 編集 / 削除 ができる */
+function onWorkerChange(){ const v=document.getElementById("workerSel").value; adminUser=v||null; saveSel(v); setCurrentUser(adminUser); renderAdmin(); }
+/* 画面切替：メインビュー / 労働者一覧ビュー */
+function admShowMain(id){ document.getElementById('viewAdminWorkers').hidden=true; document.getElementById('viewMain').hidden=false;
+  if(id){ const el=document.getElementById(id); if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40); } else { window.scrollTo({top:0,behavior:'smooth'}); } }
+function admShowWorkers(){ document.getElementById('viewMain').hidden=true; document.getElementById('viewAdminWorkers').hidden=false; renderWorkerList(); window.scrollTo({top:0,behavior:'smooth'}); }
+function deselectWorker(){ adminUser=null; saveSel(""); setCurrentUser(null); renderAdmin(); }
+/* 労働者一覧（名簿）を検索・絞り込みして表示。行クリックでその人を選択して詳細（メイン）へ */
 function renderWorkerList(){
-  const users=getUsers();const keys=Object.keys(users);const accts=getAccounts();const box=document.getElementById("workerListBox");
-  if(!keys.length){box.innerHTML=`<div class="empty"><b>労働者がいません</b>「＋ 労働者を追加」から登録してください</div>`;return;}
+  const box=document.getElementById("workerListBox");if(!box)return;
+  const users=getUsers();const accts=getAccounts();
+  const q=(document.getElementById("wlSearch")?document.getElementById("wlSearch").value:"").trim().toLowerCase();
+  const filt=document.getElementById("wlFilter")?document.getElementById("wlFilter").value:"";
+  if(!Object.keys(users).length){box.innerHTML=`<div class="empty"><b>労働者がいません</b>「＋ 労働者を追加」から登録してください</div>`;return;}
+  let keys=Object.keys(users);
+  if(q) keys=keys.filter(u=>u.toLowerCase().includes(q)||userLabel(u).toLowerCase().includes(q)||(userEmail(u)||"").toLowerCase().includes(q));
+  if(filt==="login") keys=keys.filter(u=>accts[u]&&accts[u].role==="worker");
+  else if(filt==="nologin") keys=keys.filter(u=>!(accts[u]&&accts[u].role==="worker"));
+  if(!keys.length){box.innerHTML=`<div class="empty">条件に合う労働者がいません</div>`;return;}
   box.innerHTML=keys.map(u=>{const a=accts[u];const login=(a&&a.role==="worker")?'<span class="badge approved">ログイン可</span>':'<span class="badge none">ログイン未設定</span>';
     const cur=u===adminUser?' <span class="badge submitted">表示中</span>':'';
-    return `<div class="subrow"><div><span class="m">${esc(userLabel(u))}</span> <span class="d2">${esc(u)}</span>${cur}<div class="note" style="font-size:.72rem;color:var(--muted);margin-top:2px">${esc(userEmail(u)||'メール未登録')} ／ ${login}</div></div>
+    return `<div class="subrow"><div style="cursor:pointer;flex:1;min-width:0" onclick="selectWorker('${u}')" title="クリックで詳細を表示"><span class="m">${esc(userLabel(u))}</span> <span class="d2">${esc(u)}</span>${cur}<div class="note" style="font-size:.72rem;color:var(--muted);margin-top:2px">${esc(userEmail(u)||'メール未登録')} ／ ${login}</div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="mini" onclick="selectWorker('${u}')">表示</button><button class="mini" onclick="openWorkerEdit('${u}')">編集</button><button class="mini danger" onclick="deleteWorker('${u}')">削除</button></div></div>`;}).join("");
 }
-function selectWorker(u){ adminUser=u;saveSel(u);setCurrentUser(u);renderAdmin();window.scrollTo({top:0,behavior:'smooth'}); }
+function selectWorker(u){ adminUser=u;saveSel(u);setCurrentUser(u);admShowMain();renderAdmin();window.scrollTo({top:0,behavior:'smooth'}); }
 function deleteWorker(u){ openConfirm(`労働者「${userLabel(u)}」を削除`,`この労働者の勤怠データ・提出・ログインをすべて削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{ removeUser(u); const a=getAccounts();delete a[u];saveAccounts(a); if(adminUser===u){saveSel("");ensureAdminUser();} renderAdmin(); }); }
 function openWorkerEdit(u){ document.getElementById("weUser").value=u;document.getElementById("weName").value=userLabel(u);document.getElementById("weEmail").value=userEmail(u);document.getElementById("weErr").textContent="";document.getElementById("workerEditModal").hidden=false; }
 function saveWorkerEdit(){ const u=document.getElementById("weUser").value;const name=document.getElementById("weName").value.trim();const email=document.getElementById("weEmail").value.trim();const err=document.getElementById("weErr");
@@ -685,9 +717,9 @@ function saveContractForm(){const g=id=>document.getElementById(id).value.trim()
   saveContract(obj);
   document.getElementById("contractModal").hidden=true;renderContract();}
 
-/* ---- 勤怠表 / 給与証明書：1年分の一覧 → 月を選んで詳細・PDF ---- */
+/* ---- 勤怠表 / 給与明細：1年分の一覧 → 月を選んで詳細・PDF ---- */
 let _dlType='timesheet',_dlYear=null;
-function openDocList(type){ setCurrentUser(adminUser); _dlType=type; _dlYear=adminMonthDate.getFullYear(); document.getElementById('dlTitle').textContent=(type==='salary')?'📑 給与証明書':'🖨️ 勤怠表'; renderDocList(); document.getElementById('docListModal').hidden=false; }
+function openDocList(type){ setCurrentUser(adminUser); _dlType=type; _dlYear=adminMonthDate.getFullYear(); document.getElementById('dlTitle').textContent=(type==='salary')?'📑 給与明細':'🖨️ 勤怠表'; renderDocList(); document.getElementById('docListModal').hidden=false; }
 function dlShiftYear(n){ const max=new Date().getFullYear(),min=max-4; _dlYear=Math.min(max,Math.max(min,_dlYear+n)); renderDocList(); }
 function renderDocList(){
   document.getElementById('dlYear').textContent=_dlYear+'年';
@@ -705,12 +737,12 @@ function renderDocList(){
 function dlPdf(mk){ if(_dlType==='salary')printSalaryCert(mk); else printTimesheet(mk); }
 function dlDetail(mk){
   const [y,m]=mk.split('-').map(Number); const agg=aggregate(mk);
-  document.getElementById('ddTitle').textContent=`${y}年${m}月 の${_dlType==='salary'?'給与証明書':'勤怠表'}（${userLabel(adminUser)}）`;
+  document.getElementById('ddTitle').textContent=`${y}年${m}月 の${_dlType==='salary'?'給与明細':'勤怠表'}（${userLabel(adminUser)}）`;
   let body;
   if(_dlType==='salary'){ const est=salaryEstimate(mk);
     body=`<div class="contract-card"><div class="ci"><div class="l">対象月</div><div class="v">${y}年${m}月</div></div><div class="ci"><div class="l">出勤日数</div><div class="v">${agg.workDays}日</div></div><div class="ci"><div class="l">実働時間</div><div class="v">${fmtH(agg.workMin)}時間</div></div><div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}時間</div></div><div class="ci full"><div class="l">支給見込額</div><div class="v">${est.text}（${est.basis}）</div></div></div>`;
   } else {
-    body=`<div class="contract-card"><div class="ci"><div class="l">出勤日数</div><div class="v">${agg.workDays}日</div></div><div class="ci"><div class="l">休暇日数</div><div class="v">${agg.leaveDays}日</div></div><div class="ci"><div class="l">総実働</div><div class="v">${fmtH(agg.workMin)}h</div></div><div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}h</div></div><div class="ci"><div class="l">深夜</div><div class="v">${fmtH(agg.niMin)}h</div></div><div class="ci"><div class="l">休憩合計</div><div class="v">${fmtH(agg.brMin)}h</div></div></div>`;
+    body=`<div style="max-height:58vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff">${timesheetDocHTML(mk)}</div>`;
   }
   document.getElementById('ddBody').innerHTML=body;
   document.getElementById('ddPdf').onclick=()=>dlPdf(mk);

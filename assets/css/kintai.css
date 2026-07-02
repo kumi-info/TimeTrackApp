@@ -52,6 +52,9 @@ header .sub{font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.
 /* quick access buttons (休暇の隣) */
 .quickbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
 .quickbar .mini{padding:9px 14px;font-size:.82rem}
+/* 管理画面のカテゴリメニュー */
+.admmenu{display:flex;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:6px}
+.admmenu .mini{padding:9px 14px;font-size:.85rem}
 
 /* 勤務場所（出勤ボタンの上・左寄せの小さめ操作） */
 .locbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 2px 0}
@@ -168,6 +171,7 @@ td.work{font-weight:800;color:var(--teal-deep)}
 .note-warn{background:#fff9ec;border:1px solid #f3e2b8;border-radius:14px;padding:13px 15px;margin-top:16px;font-size:.8rem;color:#8a6410;font-weight:600;line-height:1.6}
 
 /* ===== お知らせ / 通知 ===== */
+.reminder-over{background:linear-gradient(135deg,#fdeeee,#f9d6d6)!important;border-color:#e6a5a5!important;color:#a8342f!important}
 .reminder{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,#fff6de,#ffeec2);
   border:1px solid #f0d98a;border-radius:16px;padding:14px 16px;margin-top:16px;color:#7a5c00;font-weight:700;font-size:.88rem;line-height:1.6}
 .reminder .ic{font-size:1.3rem;flex:none;line-height:1}
@@ -190,6 +194,9 @@ td.work{font-weight:800;color:var(--teal-deep)}
 .news-chip.pinned{border-color:#f2b8b8;background:#fdf4f4;color:var(--danger)}
 .news-chip .ct{overflow:hidden;text-overflow:ellipsis}
 .news-empty{color:var(--muted);font-size:.82rem;font-weight:700;align-self:center}
+.news-divider{width:1px;align-self:stretch;background:var(--line);margin:2px 0}
+.news-head-h2{cursor:pointer}
+.news-head-h2:hover{color:var(--teal-deep)}
 .notifbell{position:relative}
 .notifcount{position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:800;
   min-width:17px;height:17px;border-radius:999px;display:grid;place-items:center;padding:0 4px}
