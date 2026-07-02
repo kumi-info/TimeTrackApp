@@ -46,7 +46,7 @@ function userLabel(username){ const u=getUsers()[username]; return u&&u.name?u.n
 function userEmail(username){ const u=getUsers()[username]; return u?(u.email||""):""; }
 
 /* ---- per-user data ---- */
-function _blank(){ return {records:{},schedule:{},submits:{},plan:{},plansub:{},contract:{}}; }
+function _blank(){ return {records:{},schedule:{},submits:{},plan:{},plansub:{},contract:{},transport:[],transportsub:{}}; }
 function allData(){ return _get(K.DATA,{}); }
 function getData(username){ const d=allData(); return Object.assign(_blank(), d[username]||{}); }
 function setData(username,ud){ const d=allData(); d[username]=ud; _set(K.DATA,d); }
@@ -64,7 +64,9 @@ const DB = {
   submits(){ return this._d().submits||{}; },        saveSubmits(v){ const d=this._d(); d.submits=v; this._s(d); },
   plan(){ return this._d().plan||{}; },              savePlan(v){ const d=this._d(); d.plan=v; this._s(d); },
   plansub(){ return this._d().plansub||{}; },        savePlansub(v){ const d=this._d(); d.plansub=v; this._s(d); },
-  contract(){ return this._d().contract||{}; },      saveContractData(v){ const d=this._d(); d.contract=v; this._s(d); }
+  contract(){ return this._d().contract||{}; },      saveContractData(v){ const d=this._d(); d.contract=v; this._s(d); },
+  transport(){ return this._d().transport||[]; },    saveTransport(v){ const d=this._d(); d.transport=v; this._s(d); },
+  transportsub(){ return this._d().transportsub||{}; }, saveTransportsub(v){ const d=this._d(); d.transportsub=v; this._s(d); }
 };
 
 /* live sync between tabs of the same browser */
@@ -270,7 +272,9 @@ function printTimesheet(mkey){
 }
 
 /* ===== config ===== */
-function getCfg(){ return Object.assign({submitDay:25, payDay:25, adminEmail:"", companyName:""}, _get(K.CFG,{})); }
+/* submitDay: 数値(1-31) または "eom"(=月末) */
+function getCfg(){ return Object.assign({submitDay:"eom", payDay:25, companyName:""}, _get(K.CFG,{})); }
+function submitDayFor(y,m){ const c=getCfg(); if(String(c.submitDay)==="eom") return {day:daysInMonth(y,m), eom:true}; return {day:Math.min(daysInMonth(y,m),Math.max(1,Number(c.submitDay)||25)), eom:false}; }
 function saveCfg(patch){ _set(K.CFG, Object.assign(getCfg(), patch)); }
 
 /* ===== announcements (お知らせ) ===== */
@@ -307,26 +311,46 @@ function missingPunchDays(username, monthsBack){
 }
 /* 提出リマインド: 固定日(submitDay)以降で当月未提出/差し戻し */
 function submissionReminder(username){
-  const cfg=getCfg(); const today=new Date(); const day=today.getDate();
+  const today=new Date(); const day=today.getDate();
+  const y=today.getFullYear(), m=today.getMonth()+1;
+  const sd=submitDayFor(y,m);
   const mk=monthKey(today);
   const subs=getData(username).submits||{};
   const st=subs[mk]?subs[mk].status:"none";
-  if(day>=cfg.submitDay && (st==="none"||st==="rejected")){
-    return { mk, day:cfg.submitDay, status:st, msg:`毎月${cfg.submitDay}日は勤怠表の提出日です。${mkLabel(mk)}分の勤怠表を提出してください。` };
+  if(day>=sd.day && (st==="none"||st==="rejected")){
+    const label = sd.eom ? `月末（${sd.day}日）` : `${sd.day}日`;
+    return { mk, day:sd.day, status:st, msg:`毎月${label}は勤怠表の提出日です。${mkLabel(mk)}分の勤怠表を提出してください。` };
   }
   return null;
 }
+/* ===== 交通費（transport） ===== */
+function transportForMonth(username, mk){
+  const t=getData(username).transport||[];
+  return t.filter(e=>e.date && e.date.slice(0,7)===mk).sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:0));
+}
+function transportEntryTotal(e){ return (Number(e.amount)||0)*(e.round?2:1); }
+function transportTotal(username, mk){ return transportForMonth(username,mk).reduce((s,e)=>s+transportEntryTotal(e),0); }
+function yen(n){ return "¥"+(Number(n)||0).toLocaleString('ja-JP'); }
 /* 管理者向け通知: 提出(確認待ち) / 承認済み未払い(給与支給) */
 function adminNotifications(){
   const users=getUsers(); const out=[];
   Object.keys(users).forEach(u=>{
-    const subs=getData(u).submits||{};
+    const d=getData(u);
+    const subs=d.submits||{};
     Object.keys(subs).forEach(mk=>{
       const s=subs[mk];
       if(s.status==="submitted") out.push({type:"submit",user:u,mk,ts:s.submittedAt||0,
         msg:`${userLabel(u)} さんが ${mkLabel(mk)} の勤怠表を提出しました（確認待ち）`});
       else if(s.status==="approved" && !s.paidAt) out.push({type:"pay",user:u,mk,ts:s.reviewedAt||0,
         msg:`${userLabel(u)} さんの ${mkLabel(mk)} は承認済みです。給与支給を行ってください`});
+    });
+    const ts=d.transportsub||{};
+    Object.keys(ts).forEach(mk=>{
+      const s=ts[mk];
+      if(s.status==="submitted") out.push({type:"tsubmit",user:u,mk,ts:s.submittedAt||0,
+        msg:`${userLabel(u)} さんが ${mkLabel(mk)} の交通費を申請しました（確認待ち）`});
+      else if(s.status==="approved" && !s.paidAt) out.push({type:"tpay",user:u,mk,ts:s.reviewedAt||0,
+        msg:`${userLabel(u)} さんの ${mkLabel(mk)} の交通費は承認済みです。精算してください`});
     });
   });
   out.sort((a,b)=>b.ts-a.ts);
@@ -433,7 +457,8 @@ global.Kintai = {
   AK, hashPw, AUTH, authState,
   setHeaderName, showAuth, doSetup, doLogin, logout, openSettings, saveSettings,
   CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, esc, printDoc, printContract, printTimesheet,
-  getCfg, saveCfg,
+  getCfg, saveCfg, submitDayFor,
+  transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,
   getRead, markRead, lastRead, unreadNews,
   missingPunchDays, submissionReminder, adminNotifications, mailtoLink, openMail

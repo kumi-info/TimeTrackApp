@@ -122,6 +122,11 @@
       <div class="panel-body"><div id="planSubBox"></div></div>
     </section>
 
+    <section class="panel" id="trPanel">
+      <div class="panel-head"><h2>🚃 交通費の申請</h2></div>
+      <div class="panel-body"><div id="trAdminBox"></div></div>
+    </section>
+
     <section class="panel">
       <div class="panel-head"><h2>📢 お知らせ配信</h2>
         <div class="tools"><button class="mini solid" onclick="openNews()">＋ 新規お知らせ</button></div>
@@ -133,7 +138,9 @@
       <div class="panel-head"><h2>⚙ 設定</h2></div>
       <div class="panel-body">
         <div class="fieldrow">
-          <div class="field"><label>勤怠表の提出日（毎月）</label><input id="cfgSubmitDay" type="number" min="1" max="31" inputmode="numeric"></div>
+          <div class="field"><label>勤怠表の提出日（毎月）</label><select id="cfgSubmitDay">
+            <option value="eom">月末</option><option value="25">25日</option><option value="20">20日</option>
+            <option value="15">15日</option><option value="10">10日</option><option value="5">5日</option><option value="28">28日</option></select></div>
           <div class="field"><label>給与支給日（毎月）</label><input id="cfgPayDay" type="number" min="1" max="31" inputmode="numeric"></div>
         </div>
         <div class="field"><label>会社名（任意）</label><input id="cfgCompany"></div>
@@ -310,15 +317,19 @@ function renderNotifications(){
   if(bell){ bell.textContent=list.length; bell.hidden=list.length===0; }
   if(!list.length){ box.innerHTML=`<div class="okmsg"><span>✓</span>新しい通知はありません</div>`; return; }
   box.innerHTML=`<div class="notiflist">`+list.map(n=>{
-    const act = n.type==="submit"
-      ? `<button class="mini solid" onclick="viewWorker('${n.user}')">確認する</button>`
-      : `<button class="mini solid warn" onclick="markPaid('${n.user}','${n.mk}')">給与支給済</button>`;
-    return `<div class="notifitem ${n.type}"><span class="ic">${n.type==='submit'?'📥':'💰'}</span><div>${esc(n.msg)}</div><div class="n-actions">${act}</div></div>`;
+    let act,cls,ic;
+    if(n.type==="submit"){act=`<button class="mini solid" onclick="viewWorker('${n.user}')">確認する</button>`;cls="submit";ic="📥";}
+    else if(n.type==="pay"){act=`<button class="mini solid warn" onclick="markPaid('${n.user}','${n.mk}')">給与支給済</button>`;cls="pay";ic="💰";}
+    else if(n.type==="tsubmit"){act=`<button class="mini solid" onclick="viewWorker('${n.user}',true)">確認する</button>`;cls="submit";ic="🚃";}
+    else{act=`<button class="mini solid warn" onclick="markTransportPaid('${n.user}','${n.mk}')">精算済</button>`;cls="pay";ic="🚃";}
+    return `<div class="notifitem ${cls}"><span class="ic">${ic}</span><div>${esc(n.msg)}</div><div class="n-actions">${act}</div></div>`;
   }).join("")+`</div>`;
 }
-function viewWorker(u){ adminUser=u; saveSel(u); setCurrentUser(u); renderAdmin(); scrollToPanel('subPanel'); }
+function viewWorker(u,toTransport){ adminUser=u; saveSel(u); setCurrentUser(u); renderAdmin(); scrollToPanel(toTransport?'trPanel':'subPanel'); }
 function setSubmitStatus(u,mk,patch){ const d=getData(u); d.submits=d.submits||{}; if(d.submits[mk]){ Object.assign(d.submits[mk],patch); setData(u,d); } }
 function markPaid(u,mk){ setSubmitStatus(u,mk,{status:"paid",paidAt:Date.now()}); renderAdmin(); }
+function setTransportStatus(u,mk,patch){ const d=getData(u); d.transportsub=d.transportsub||{}; if(d.transportsub[mk]){ Object.assign(d.transportsub[mk],patch); setData(u,d); } }
+function markTransportPaid(u,mk){ setTransportStatus(u,mk,{status:"paid",paidAt:Date.now()}); renderAdmin(); }
 
 /* ---- サマリー・エラー・契約 ---- */
 function renderSummary(){
@@ -380,9 +391,14 @@ function renderSubmissions(){
 }
 function approve(mk){const s=DB.submits();if(s[mk]){s[mk].status="approved";s[mk].reviewedAt=Date.now();s[mk].comment="";DB.saveSubmits(s);}renderAdmin();}
 function markPaidCur(mk){const s=DB.submits();if(s[mk]){s[mk].status="paid";s[mk].paidAt=Date.now();DB.saveSubmits(s);}renderAdmin();}
-function reject(mk){ rejectKey=mk; document.getElementById("rjTarget").textContent=`${userLabel(adminUser)} さんの ${mkLabel(mk)} 分を差し戻します。労働者は再提出できます。`; document.getElementById("rjComment").value=""; document.getElementById("rejectModal").hidden=false; }
+let rejectKind="timesheet";
+function reject(mk){ rejectKind="timesheet"; rejectKey=mk; document.getElementById("rjTarget").textContent=`${userLabel(adminUser)} さんの ${mkLabel(mk)} 分の勤怠表を差し戻します。労働者は再提出できます。`; document.getElementById("rjComment").value=""; document.getElementById("rejectModal").hidden=false; }
+function rejectTransport(mk){ rejectKind="transport"; rejectKey=mk; document.getElementById("rjTarget").textContent=`${userLabel(adminUser)} さんの ${mkLabel(mk)} の交通費を差し戻します。労働者は再申請できます。`; document.getElementById("rjComment").value=""; document.getElementById("rejectModal").hidden=false; }
 function closeReject(){ document.getElementById("rejectModal").hidden=true; rejectKey=null; }
-function doReject(){ const mk=rejectKey; if(!mk){closeReject();return;} const c=document.getElementById("rjComment").value.trim(); const s=DB.submits(); if(s[mk]){s[mk].status="rejected";s[mk].reviewedAt=Date.now();s[mk].comment=c;DB.saveSubmits(s);} closeReject(); renderAdmin(); }
+function doReject(){ const mk=rejectKey; if(!mk){closeReject();return;} const c=document.getElementById("rjComment").value.trim();
+  if(rejectKind==="transport"){ setTransportStatus(adminUser,mk,{status:"rejected",reviewedAt:Date.now(),comment:c}); }
+  else { const s=DB.submits(); if(s[mk]){s[mk].status="rejected";s[mk].reviewedAt=Date.now();s[mk].comment=c;DB.saveSubmits(s);} }
+  closeReject(); renderAdmin(); }
 
 /* ---- 出勤予定の申請 ---- */
 function renderPlanSubs(){
@@ -398,6 +414,26 @@ function renderPlanSubs(){
 function approvePlanSub(mk){const s=DB.plansub();if(s[mk]){s[mk].status="approved";s[mk].reviewedAt=Date.now();s[mk].comment="";DB.savePlansub(s);}applyPlan(mk);}
 function rejectPlanSub(mk){openConfirm("出勤予定の差し戻し",`${mkLabel(mk)} の出勤予定を差し戻します。`,"差し戻す",()=>{const s=DB.plansub();if(s[mk]){s[mk].status="rejected";s[mk].reviewedAt=Date.now();DB.savePlansub(s);}renderAdmin();});}
 
+/* ---- 交通費の申請 ---- */
+function renderTransportAdmin(){
+  const box=document.getElementById("trAdminBox");const subs=DB.transportsub();const keys=Object.keys(subs).sort().reverse();
+  if(!keys.length){box.innerHTML=`<div class="empty">交通費の申請はまだありません</div>`;return;}
+  box.innerHTML=keys.map(mk=>{
+    const s=subs[mk];const label={submitted:"申請済（確認待ち）",approved:"承認済",rejected:"差し戻し",paid:"精算済"}[s.status]||s.status;
+    const entries=transportForMonth(adminUser,mk);const total=transportTotal(adminUser,mk);
+    let act="";
+    if(s.status==="submitted")act=`<button class="mini solid" onclick="approveTransport('${mk}')">承認</button><button class="mini danger" onclick="rejectTransport('${mk}')">差し戻し</button>`;
+    else if(s.status==="approved")act=`<button class="mini solid warn" onclick="markTransportPaidCur('${mk}')">精算済</button><button class="mini danger" onclick="rejectTransport('${mk}')">差し戻し</button>`;
+    else if(s.status==="rejected")act=`<button class="mini solid" onclick="approveTransport('${mk}')">承認</button>`;
+    else act=`<span class="note" style="color:var(--muted)">完了</span>`;
+    const rows=entries.map(e=>{const dt=parseKey(e.date);return `<tr><td data-l="日付">${dt.getMonth()+1}/${dt.getDate()}</td><td data-l="目的">${esc(e.purpose||"")}</td><td data-l="区間">${esc(e.from||"")}${(e.from||e.to)?" → ":""}${esc(e.to||"")}${e.round?"（往復）":""}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td></tr>`;}).join("");
+    const table=entries.length?`<table><thead><tr><th>日付</th><th>目的</th><th>区間</th><th>金額</th></tr></thead><tbody>${rows}</tbody></table>`:`<div class="note" style="color:var(--muted);padding:6px 0">明細なし</div>`;
+    return `<div style="border-bottom:1px solid #eef3f3;padding:12px 0"><div class="subrow" style="border:0;padding:0 0 8px"><div><span class="m">${mkLabel(mk)} 交通費</span><div class="note" style="color:var(--muted);font-size:.72rem">申請：${new Date(s.submittedAt).toLocaleString('ja-JP')}${s.comment?` / ${esc(s.comment)}`:""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-weight:800;font-variant-numeric:tabular-nums">${yen(total)}</span><span class="badge ${s.status}">${label}</span>${act}</div></div>${table}</div>`;
+  }).join("");
+}
+function approveTransport(mk){setTransportStatus(adminUser,mk,{status:"approved",reviewedAt:Date.now(),comment:""});renderAdmin();}
+function markTransportPaidCur(mk){setTransportStatus(adminUser,mk,{status:"paid",paidAt:Date.now()});renderAdmin();}
+
 /* ---- お知らせ配信 ---- */
 function renderNewsAdmin(){
   const box=document.getElementById("newsAdminBox");const list=newsSorted();
@@ -412,8 +448,9 @@ function saveNewsForm(){ const t=document.getElementById("nwTitle").value.trim()
 function delNews(id){ openConfirm("お知らせの削除","このお知らせを削除します。","削除する",()=>{deleteNews(id);renderNewsAdmin();}); }
 
 /* ---- 設定 ---- */
-function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=c.submitDay;document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgCompany").value=c.companyName; }
-function saveCfgForm(){ const sd=Math.min(31,Math.max(1,Number(document.getElementById("cfgSubmitDay").value)||25));const pd=Math.min(31,Math.max(1,Number(document.getElementById("cfgPayDay").value)||25));
+function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=String(c.submitDay);document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgCompany").value=c.companyName; }
+function saveCfgForm(){ const rawSd=document.getElementById("cfgSubmitDay").value;const sd=(rawSd==="eom")?"eom":Math.min(31,Math.max(1,Number(rawSd)||25));
+  const pd=Math.min(31,Math.max(1,Number(document.getElementById("cfgPayDay").value)||25));
   saveCfg({submitDay:sd,payDay:pd,companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
 
 /* ---- 確認モーダル・記録編集・契約編集（管理者） ---- */
@@ -460,8 +497,8 @@ function renderAdmin(){
   setCurrentUser(adminUser);
   document.getElementById("mLabel").textContent=`${adminMonthDate.getFullYear()}年${adminMonthDate.getMonth()+1}月`;
   renderWorkerBar();renderNotifications();
-  if(!adminUser){ ["sumGrid","contractBox","errBox","calBox","adminRecords","subBox","planSubBox"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<div class="empty">「＋ 労働者を追加」から登録してください</div>`;}); renderNewsAdmin();renderCfg();return; }
-  renderSummary();renderContract();renderErrors();renderCalendar();renderRecords();renderSubmissions();renderPlanSubs();renderNewsAdmin();renderCfg();
+  if(!adminUser){ ["sumGrid","contractBox","errBox","calBox","adminRecords","subBox","planSubBox","trAdminBox"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<div class="empty">「＋ 労働者を追加」から登録してください</div>`;}); renderNewsAdmin();renderCfg();return; }
+  renderSummary();renderContract();renderErrors();renderCalendar();renderRecords();renderSubmissions();renderPlanSubs();renderTransportAdmin();renderNewsAdmin();renderCfg();
 }
 window.afterSettings=function(){ setHeaderName(); ensureAdminUser(); renderAdmin(); };
 window.onAuthReady=function(){ showAuth("ready");document.getElementById("hdrName").hidden=false;document.getElementById("adminContent").hidden=false;setHeaderName();ensureAdminUser();renderAdmin(); };
