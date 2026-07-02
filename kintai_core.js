@@ -166,17 +166,18 @@ function aggregate(mkey){
 /* ---- CSV ---- */
 function buildCSV(mkey){
   const recs=DB.records(); const [y,m]=mkey.split("-").map(Number);
-  const head=["日付","曜日","区分","出勤","退勤","休憩(分)","実働(h)","時間外(h)","深夜(h)","備考"];
+  const q=s=>{ s=String(s==null?"":s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const head=["日付","曜日","区分","勤務場所","出勤","退勤","休憩(分)","実働(h)","時間外(h)","深夜(h)","備考"];
   const lines=[head.join(",")];
   for(let d=1; d<=daysInMonth(y,m); d++){
     const k=`${y}-${pad(m)}-${pad(d)}`; const r=recs[k]; const dow=WD[parseKey(k).getDay()];
-    if(!r){ lines.push([k,dow,"","","","","","","",""].join(",")); continue; }
-    if(r.leave){ lines.push([k,dow,LEAVE_TYPES[r.leave.type]||"休暇","","","","","","",(r.leave.note||"")].join(",")); continue; }
+    if(!r){ lines.push([k,dow,"","","","","","","","",""].join(",")); continue; }
+    if(r.leave){ lines.push([k,dow,LEAVE_TYPES[r.leave.type]||"休暇","","","","","","","",q(r.leave.note||"")].join(",")); continue; }
     const bMin=Math.round(breakMs(r,r.out??Date.now())/60000);
     const wMin=r.out?Math.round(workedMs(r)/60000):"";
     const ot=r.out?(overtimeMin(r)/60).toFixed(2):"";
     const ni=r.out?(Math.round(nightMs(r)/60000)/60).toFixed(2):"";
-    lines.push([k,dow,"勤務",hm(r.in),r.out?hm(r.out):"",bMin,wMin===""?"":(wMin/60).toFixed(2),ot,ni,(r.note||"")].join(","));
+    lines.push([k,dow,"勤務",q(r.location||""),hm(r.in),r.out?hm(r.out):"",bMin,wMin===""?"":(wMin/60).toFixed(2),ot,ni,q(r.note||"")].join(","));
   }
   return "﻿"+lines.join("\r\n");
 }

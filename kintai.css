@@ -53,6 +53,13 @@ header .sub{font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.
 .quickbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
 .quickbar .mini{padding:9px 14px;font-size:.82rem}
 
+/* 勤務場所 */
+.locbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-top:12px}
+.locbar label{font-size:.72rem;font-weight:800;color:var(--muted);letter-spacing:.05em}
+.locbar select,.locbar input{padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-weight:700;font-size:.9rem;background:#fff;color:var(--ink)}
+.locbar input{flex:1;min-width:150px;font-weight:600}
+.tag.loc{background:#eaf3ff;color:#2b5fb0}
+
 .today{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-top:16px;
   display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .today .cell{text-align:center}

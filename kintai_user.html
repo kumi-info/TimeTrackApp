@@ -63,11 +63,20 @@
       <!-- 提出リマインド -->
       <div id="reminderBox" hidden></div>
 
-      <section class="hero">
+      <section class="hero" style="margin-top:20px">
         <div class="date" id="date">—</div>
         <div class="clock" id="clock">--:--<span class="sec" id="sec">00</span></div>
         <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">勤務外</span></div>
       </section>
+
+      <!-- 勤務場所 -->
+      <div class="locbar">
+        <label>勤務場所</label>
+        <select id="locSelect" onchange="onLocChange()">
+          <option value="出勤">出勤</option><option value="リモート">リモート</option><option value="その他">その他</option>
+        </select>
+        <input id="locOther" placeholder="その他の勤務場所（必須）" style="display:none" onchange="onLocChange()">
+      </div>
 
       <div class="actions">
         <button class="btn btn-in" id="btnIn" onclick="punchIn()">出勤<small>CLOCK IN</small></button>
@@ -88,6 +97,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="mini" onclick="openLeave()">＋ 休暇を登録</button>
           <button class="mini" onclick="openEdit(null)">🕐 打刻</button>
+          <button class="mini" onclick="showView('calendar')">🗓 勤怠カレンダー</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="m" id="subMonthLabel" style="font-size:.82rem"></span>
@@ -188,6 +198,9 @@
       <option value="pm">午後半休</option><option value="special">特別休暇</option><option value="absence">欠勤</option></select></div>
     <div id="emWorkFields">
       <div class="fieldrow"><div class="field"><label>出勤</label><input type="time" id="emIn"></div><div class="field"><label>退勤</label><input type="time" id="emOut"></div></div>
+      <div class="fieldrow"><div class="field"><label>勤務場所</label><select id="emLocType" onchange="onEmLoc()">
+        <option value="出勤">出勤</option><option value="リモート">リモート</option><option value="その他">その他</option></select></div>
+        <div class="field" id="emLocOtherWrap"><label>その他の勤務場所</label><input id="emLocOther" placeholder="必須"></div></div>
       <div class="field"><label>休憩</label><div id="emBreaks"></div><button type="button" class="addbrk" onclick="addBreakRow()">＋ 休憩を追加</button></div>
     </div>
     <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
@@ -326,10 +339,21 @@ function menuGo(what){
   else if(what==='timesheet') printTimesheet(monthKey(viewMonthDate));
 }
 
+/* ---- 勤務場所（前回選択を固定） ---- */
+function locKey(){ return "kintai_v4_loc_"+currentUser(); }
+function getLoc(){ try{ return JSON.parse(localStorage.getItem(locKey()))||{type:"出勤",other:""}; }catch(e){ return {type:"出勤",other:""}; } }
+function setLoc(v){ try{ localStorage.setItem(locKey(),JSON.stringify(v)); }catch(e){} }
+function resolvedLoc(){ const t=document.getElementById("locSelect").value; const o=document.getElementById("locOther").value.trim(); return t==="その他"?o:t; }
+function onLocChange(){ const t=document.getElementById("locSelect").value; document.getElementById("locOther").style.display=(t==="その他")?"":"none"; setLoc({type:t,other:document.getElementById("locOther").value.trim()}); }
+function loadLocUI(){ const l=getLoc(); const s=document.getElementById("locSelect"); if(!s)return; s.value=l.type||"出勤"; document.getElementById("locOther").value=l.other||""; document.getElementById("locOther").style.display=(l.type==="その他")?"":"none"; }
+
 /* ---- 打刻 ---- */
 function getTodayRec(){ const r=DB.records(); const k=todayKey(); return r[k]||{in:null,out:null,breaks:[]}; }
 function putTodayRec(rec){ const r=DB.records(); r[todayKey()]=rec; DB.saveRecords(r); }
-function punchIn(){ const rec=getTodayRec(); if(rec.in)return; if(rec.leave){alert("この日は休暇として登録されています");return;} rec.in=Date.now(); putTodayRec(rec); renderAll(); }
+function punchIn(){ const rec=getTodayRec(); if(rec.in)return; if(rec.leave){alert("この日は休暇として登録されています");return;}
+  const t=document.getElementById("locSelect").value; const loc=resolvedLoc();
+  if(t==="その他" && !loc){ alert("勤務場所（その他）を入力してください"); return; }
+  rec.in=Date.now(); rec.location=loc; putTodayRec(rec); renderAll(); }
 function punchOut(){ const rec=getTodayRec(); if(!rec.in||rec.out)return; const l=(rec.breaks||[])[rec.breaks.length-1]; if(l&&!l.end)l.end=Date.now(); rec.out=Date.now(); putTodayRec(rec); renderAll(); }
 function breakStart(){ const rec=getTodayRec(); if(state(rec)!=="working")return; (rec.breaks=rec.breaks||[]).push({start:Date.now(),end:null}); putTodayRec(rec); renderAll(); }
 function breakEnd(){ const rec=getTodayRec(); const l=(rec.breaks||[])[rec.breaks.length-1]; if(!l||l.end)return; l.end=Date.now(); putTodayRec(rec); renderAll(); }
@@ -370,7 +394,7 @@ function renderMyRecords(){
     const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;
     let kindTag,inT,outT,wT;
     if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT="—";wT="—";}
-    else{kindTag=`<span class="tag work">勤務</span>`;inT=hm(r.in);outT=r.out?hm(r.out):"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");}
+    else{kindTag=`<span class="tag work">勤務</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(r.in);outT=r.out?hm(r.out):"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");}
     const errs=checkDay(k,r,!!sch[k]).filter(e=>e.level==="error");
     rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.length?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td class="work" data-l="実働">${wT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
   const box=document.getElementById("myRecords");
@@ -424,7 +448,7 @@ function renderTransport(){
       const route=`${esc(e.from||"")}${e.from||e.to?" → ":""}${esc(e.to||"")}`;
       const thumb=e.image?`<img class="exp-thumb" src="${e.image}" onclick="openExpImage('${e.id}')" title="画像を表示">`:"";
       const content=`${esc(e.purpose||"")}${route?`<span class="d2">${route}${e.round?"（往復）":""}</span>`:""}${e.note?`<span class="d2">${esc(e.note)}</span>`:""} ${thumb}`;
-      const act=locked?`<span class="note" style="color:var(--muted)">申請中</span>`:`<div class="rowact"><button class="iconbtn" onclick="openTransport('${e.id}')">編集</button><button class="iconbtn del" onclick="deleteTransportEntry('${e.id}')">削除</button></div>`;
+      const act=locked?`<span class="note" style="color:var(--muted)">申請中</span>`:`<div class="rowact"><button class="iconbtn" onclick="copyTransportEntry('${e.id}')">コピー</button><button class="iconbtn" onclick="openTransport('${e.id}')">編集</button><button class="iconbtn del" onclick="deleteTransportEntry('${e.id}')">削除</button></div>`;
       return `<tr><td class="datecell" data-l="日付">${dl}</td><td data-l="区分"><span class="tag ${cat==='経費'?'exp':'work'}">${cat}</span></td><td data-l="内容">${content}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td><td class="actcell" data-l="操作">${act}</td></tr>`;
     });
     box.innerHTML=`<table><thead><tr><th>日付</th><th>区分</th><th>内容</th><th>金額</th><th>操作</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
@@ -500,7 +524,14 @@ function saveTransportEntry(){
   DB.saveTransport(list);document.getElementById("transportModal").hidden=true;renderTransport();
 }
 function deleteTransportEntry(id){
-  openConfirm("交通費の削除","この交通費の申請内容を削除します。","削除する",()=>{DB.saveTransport(DB.transport().filter(x=>x.id!==id));renderTransport();},true);
+  openConfirm("経費の削除","この経費の申請内容を削除します。","削除する",()=>{DB.saveTransport(DB.transport().filter(x=>x.id!==id));renderTransport();},true);
+}
+function copyTransportEntry(id){
+  const st=(DB.transportsub()[monthKey(viewMonthDate)]||{}).status||"none";
+  if(st==="submitted"||st==="approved"||st==="paid"){alert("申請中／承認済みのため追加できません。取り消してから操作してください。");return;}
+  const list=DB.transport();const e=list.find(x=>x.id===id);if(!e)return;
+  const copy=Object.assign({},e);copy.id="t"+Date.now()+"_"+Math.floor(Math.random()*10000);
+  list.push(copy);DB.saveTransport(list);renderTransport();
 }
 function openTransportSubmit(){
   const mk=monthKey(viewMonthDate);const total=transportTotal(currentUser(),mk);
@@ -522,7 +553,7 @@ function renderSubmission(){
   const s=DB.submits()[mkey];const badge=document.getElementById("subBadge"),note=document.getElementById("subNote");
   const bSub=document.getElementById("btnSubmit"),bUn=document.getElementById("btnUnsubmit");const st=s?s.status:"none";
   badge.className="badge "+st;badge.textContent={none:"未提出",submitted:"提出済（確認待ち）",approved:"承認済",rejected:"差し戻し",paid:"給与支給済"}[st];
-  if(st==="none"){note.textContent="提出すると管理者が確認できます。";bSub.style.display="";bSub.textContent="この月を提出する";bUn.style.display="none";}
+  if(st==="none"){note.textContent="";bSub.style.display="";bSub.textContent="この月を提出する";bUn.style.display="none";}
   else if(st==="submitted"){note.textContent=`提出日時：${new Date(s.submittedAt).toLocaleString('ja-JP')}`;bSub.style.display="none";bUn.style.display="";}
   else if(st==="approved"){note.textContent=`承認済み${s.reviewedAt?`（${new Date(s.reviewedAt).toLocaleString('ja-JP')}）`:""}`;bSub.style.display="none";bUn.style.display="none";}
   else if(st==="paid"){note.textContent=`承認・給与支給済み${s.paidAt?`（${new Date(s.paidAt).toLocaleString('ja-JP')}）`:""}`;bSub.style.display="none";bUn.style.display="none";}
@@ -561,7 +592,15 @@ function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";d
   const r=k?DB.records()[k]:null;document.getElementById("emKind").value=(r&&r.leave)?r.leave.type:"work";
   document.getElementById("emIn").value=r&&!r.leave?hmInput(r.in):"";document.getElementById("emOut").value=r&&!r.leave?hmInput(r.out):"";
   document.getElementById("emNote").value=r?(r.note||(r.leave&&r.leave.note)||""):"";
+  // 勤務場所
+  let loc=(r&&!r.leave&&r.location)?r.location:"";
+  if(!k){ const gl=getLoc(); loc=gl.type==="その他"?(gl.other||"その他"):gl.type; }
+  if(loc==="リモート"){document.getElementById("emLocType").value="リモート";document.getElementById("emLocOther").value="";}
+  else if(loc==="出勤"||!loc){document.getElementById("emLocType").value="出勤";document.getElementById("emLocOther").value="";}
+  else{document.getElementById("emLocType").value="その他";document.getElementById("emLocOther").value=loc;}
+  onEmLoc();
   if(r&&r.breaks)r.breaks.forEach(b=>addBreakRow(hmInput(b.start),hmInput(b.end)));onKindChange();document.getElementById("editModal").hidden=false;}
+function onEmLoc(){document.getElementById("emLocOtherWrap").style.display=document.getElementById("emLocType").value==="その他"?"":"none";}
 function closeEdit(){document.getElementById("editModal").hidden=true;editKey=null;}
 function saveEdit(){const key=editKey||(document.getElementById("emDate")&&document.getElementById("emDate").value);const err=document.getElementById("emErr");if(!key){err.textContent="日付を選択してください";return;}
   const kind=document.getElementById("emKind").value;const note=document.getElementById("emNote").value.trim();const recs=DB.records();
@@ -569,7 +608,9 @@ function saveEdit(){const key=editKey||(document.getElementById("emDate")&&docum
   const inV=document.getElementById("emIn").value,outV=document.getElementById("emOut").value;if(!inV){err.textContent="出勤時刻を入力してください";return;}
   const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
   const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
-  recs[key]={in:inTs,out:outTs,breaks,note};DB.saveRecords(recs);closeEdit();renderAll();}
+  const lt=document.getElementById("emLocType").value,lo=document.getElementById("emLocOther").value.trim();const location=lt==="その他"?lo:lt;
+  if(lt==="その他"&&!location){err.textContent="その他の勤務場所を入力してください";return;}
+  recs[key]={in:inTs,out:outTs,breaks,note,location};DB.saveRecords(recs);closeEdit();renderAll();}
 function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,`この日の記録を削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAll();},true);}
 
 /* ---- 確認モーダル ---- */
@@ -618,7 +659,7 @@ window.onAuthReady=function(){
   showAuth("ready");
   document.getElementById("hdrName").hidden=false;
   document.getElementById("appUser").hidden=false;
-  setHeaderName();showView('home');renderAll();
+  setHeaderName();loadLocUI();showView('home');renderAll();
   if(!_started){_started=true;tick();setInterval(tick,1000);}
   maybeShowMissing();
 };

@@ -196,6 +196,9 @@
       <option value="pm">午後半休</option><option value="special">特別休暇</option><option value="absence">欠勤</option></select></div>
     <div id="emWorkFields">
       <div class="fieldrow"><div class="field"><label>出勤</label><input type="time" id="emIn"></div><div class="field"><label>退勤</label><input type="time" id="emOut"></div></div>
+      <div class="fieldrow"><div class="field"><label>勤務場所</label><select id="emLocType" onchange="onEmLoc()">
+        <option value="出勤">出勤</option><option value="リモート">リモート</option><option value="その他">その他</option></select></div>
+        <div class="field" id="emLocOtherWrap"><label>その他の勤務場所</label><input id="emLocOther" placeholder="必須"></div></div>
       <div class="field"><label>休憩</label><div id="emBreaks"></div><button type="button" class="addbrk" onclick="addBreakRow()">＋ 休憩を追加</button></div>
     </div>
     <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
@@ -437,7 +440,7 @@ function renderRecords(){
   for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r)continue;
     const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;let kindTag,inT,outT,brT,wT,otT;
     if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT=brT=wT=otT="—";}
-    else{kindTag=`<span class="tag work">勤務</span>`;inT=hm(r.in);outT=r.out?hm(r.out):"—";const bm=Math.round(breakMs(r,r.out??Date.now())/60000);brT=bm>0?bm+"分":"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");otT=r.out?fmtDur(overtimeMin(r)*60000):"—";}
+    else{kindTag=`<span class="tag work">勤務</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(r.in);outT=r.out?hm(r.out):"—";const bm=Math.round(breakMs(r,r.out??Date.now())/60000);brT=bm>0?bm+"分":"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");otT=r.out?fmtDur(overtimeMin(r)*60000):"—";}
     const errs=checkDay(k,r,!!sch[k]);
     rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.some(e=>e.level==='error')?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td data-l="休憩">${brT}</td><td class="work" data-l="実働">${wT}</td><td data-l="時間外">${otT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
   const box=document.getElementById("adminRecords");
@@ -539,7 +542,13 @@ function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";d
   const r=k?DB.records()[k]:null;document.getElementById("emKind").value=(r&&r.leave)?r.leave.type:"work";
   document.getElementById("emIn").value=r&&!r.leave?hmInput(r.in):"";document.getElementById("emOut").value=r&&!r.leave?hmInput(r.out):"";
   document.getElementById("emNote").value=r?(r.note||(r.leave&&r.leave.note)||""):"";
+  const loc=(r&&!r.leave&&r.location)?r.location:"";
+  if(loc==="リモート"){document.getElementById("emLocType").value="リモート";document.getElementById("emLocOther").value="";}
+  else if(loc==="出勤"||!loc){document.getElementById("emLocType").value="出勤";document.getElementById("emLocOther").value="";}
+  else{document.getElementById("emLocType").value="その他";document.getElementById("emLocOther").value=loc;}
+  onEmLoc();
   if(r&&r.breaks)r.breaks.forEach(b=>addBreakRow(hmInput(b.start),hmInput(b.end)));onKindChange();document.getElementById("editModal").hidden=false;}
+function onEmLoc(){document.getElementById("emLocOtherWrap").style.display=document.getElementById("emLocType").value==="その他"?"":"none";}
 function closeEdit(){document.getElementById("editModal").hidden=true;editKey=null;}
 function saveEdit(){const key=editKey||(document.getElementById("emDate")&&document.getElementById("emDate").value);const err=document.getElementById("emErr");if(!key){err.textContent="日付を選択してください";return;}
   const kind=document.getElementById("emKind").value;const note=document.getElementById("emNote").value.trim();const recs=DB.records();
@@ -547,7 +556,9 @@ function saveEdit(){const key=editKey||(document.getElementById("emDate")&&docum
   const inV=document.getElementById("emIn").value,outV=document.getElementById("emOut").value;if(!inV){err.textContent="出勤時刻を入力してください";return;}
   const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
   const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
-  recs[key]={in:inTs,out:outTs,breaks,note};DB.saveRecords(recs);closeEdit();renderAdmin();}
+  const lt=document.getElementById("emLocType").value,lo=document.getElementById("emLocOther").value.trim();const location=lt==="その他"?lo:lt;
+  if(lt==="その他"&&!location){err.textContent="その他の勤務場所を入力してください";return;}
+  recs[key]={in:inTs,out:outTs,breaks,note,location};DB.saveRecords(recs);closeEdit();renderAdmin();}
 
 let _contractPdf=undefined; let _ctPdfName="";
 function onContractPdf(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
