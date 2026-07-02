@@ -408,7 +408,13 @@ function showAuth(mode){
   if(su) su.hidden = mode!=="setup";
   if(li) li.hidden = mode!=="login";
   if(w) w.hidden = (mode==="ready");
+  const hn=document.getElementById("hdrName"), hg=document.getElementById("hdrGuest");
+  if(hn) hn.hidden = (mode!=="ready");            // ログイン中のみ表示
+  if(hg) hg.hidden = (mode==="ready");            // 未ログイン時のみ表示（ログインボタン）
 }
+/* 未ログイン時のヘッダー「ログイン／新規登録」から呼ぶ */
+function gotoLogin(){ showAuth(AUTH.cred()?"login":"setup"); }
+function gotoSignup(){ showAuth("setup"); }
 async function doSetup(){
   const g=id=>document.getElementById(id);
   const name=g("suName").value.trim(), user=g("suUser").value.trim(), email=g("suEmail").value.trim();
@@ -488,7 +494,7 @@ global.Kintai = {
   overlap, breakMs, workedMs, nightMs, overtimeMin, requiredBreakMin, state, dayKind,
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
   AK, hashPw, AUTH, authState,
-  setHeaderName, showAuth, doSetup, doLogin, logout, openSettings, saveSettings,
+  setHeaderName, showAuth, gotoLogin, gotoSignup, doSetup, doLogin, logout, openSettings, saveSettings,
   CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert,
   getCfg, saveCfg, submitDayFor,
   transportForMonth, transportEntryTotal, transportTotal, yen,

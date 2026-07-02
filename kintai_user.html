@@ -23,12 +23,16 @@
       <button class="mini" onclick="openSettings()">設定</button>
       <button class="mini solid danger" onclick="logout()">ログアウト</button>
     </div>
+    <div class="headername" id="hdrGuest">
+      <button class="mini" onclick="gotoSignup()">＋ 新規登録</button>
+      <button class="mini solid" onclick="gotoLogin()">ログイン</button>
+    </div>
   </header>
 
   <div id="authWrap">
     <div class="gate" id="authSetup" hidden>
       <div class="lockic">🔐</div>
-      <h2>初期設定</h2>
+      <h2>アカウント登録</h2>
       <p>ログイン用のアカウントを登録します（この端末に保存されます）</p>
       <div class="field"><label>お名前（表示名）</label><input id="suName" placeholder="山田 太郎"></div>
       <div class="field"><label>ユーザー名（ログインID）</label><input id="suUser" placeholder="taro"></div>
@@ -37,6 +41,7 @@
       <div class="field"><label>パスワード（確認）</label><input id="suPw2" type="password"></div>
       <div class="err-txt" id="suErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doSetup()">登録して開始</button></div>
+      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoLogin()">ログイン画面へ戻る</button></div>
     </div>
     <div class="gate" id="authLogin" hidden>
       <div class="lockic">🔒</div>
@@ -47,6 +52,7 @@
       <label class="remember"><input type="checkbox" id="liRemember" checked>ログイン状態を保持する</label>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
+      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">＋ 新規登録（アカウント作成）</button></div>
     </div>
   </div>
 

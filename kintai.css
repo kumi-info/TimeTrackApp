@@ -245,6 +245,7 @@ td.work{font-weight:800;color:var(--teal-deep)}
 .remember{max-width:340px;margin:0 auto 12px;display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;color:var(--muted);text-align:left}
 .remember input{width:auto}
 .headername{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.headername[hidden]{display:none}
 .headername .who{font-size:.82rem;font-weight:800;color:var(--teal-ink)}
 .headername .who small{display:block;font-size:.66rem;color:var(--muted);font-weight:600}
 .headername .rolebadge{margin:0}
