@@ -29,7 +29,7 @@
     <div class="gate" id="authSetup" hidden>
       <div class="lockic">🔐</div>
       <h2>労働者アカウント登録</h2>
-      <p>打刻用の労働者アカウントを登録します。管理者が同じユーザー名を登録済みの場合は、その勤怠データに紐づきます。</p>
+      <p style="max-width:360px;margin-left:auto;margin-right:auto;text-align:left">打刻用の労働者アカウントを登録します。<br>管理者が同じユーザー名を登録済みの場合は、その勤怠データに紐づきます。</p>
       <div class="field"><label>お名前（表示名）</label><input id="suName" placeholder="山田 太郎"></div>
       <div class="field"><label>ユーザー名（ログインID）</label><input id="suUser" placeholder="taro"></div>
       <div class="field"><label>メールアドレス</label><input id="suEmail" type="email" placeholder="taro@example.com"></div>
@@ -48,16 +48,18 @@
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
       <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">＋ 新規登録（アカウント作成）</button></div>
+      <div class="actionrow" style="margin-top:8px"><button class="mini" onclick="alert('パスワードを忘れた場合は、管理者にパスワードの再設定を依頼してください。')">パスワードをお忘れですか？</button></div>
     </div>
   </div>
 
   <div id="appUser" hidden>
     <!-- ===== ホーム ===== -->
     <div id="viewHome">
-      <!-- お知らせ（時刻の上） -->
+      <!-- お知らせ（時刻の上・見出しの横に横スクロール表示） -->
       <section class="panel" style="margin-top:0">
-        <div class="panel-head"><h2>📢 お知らせ</h2></div>
-        <div class="panel-body" id="newsBox" style="padding:12px 14px"></div>
+        <div class="panel-head"><h2>📢 お知らせ</h2>
+          <div class="news-strip" id="newsBox"></div>
+        </div>
       </section>
 
       <!-- 提出リマインド -->
@@ -91,6 +93,7 @@
         <div class="cell"><div class="lbl">実働</div><div class="val work" id="tWork">0:00</div></div>
         <div class="cell"><div class="lbl">時間外</div><div class="val ot" id="tOt">0:00</div></div>
       </div>
+      <div class="sessinfo" id="sessInfo"></div>
 
       <!-- 操作＋勤怠表の提出（上部に表示） -->
       <div class="quickbar" style="justify-content:space-between;align-items:center">
@@ -197,11 +200,12 @@
       <option value="work">勤務</option><option value="paid">有給休暇</option><option value="am">午前半休</option>
       <option value="pm">午後半休</option><option value="special">特別休暇</option><option value="absence">欠勤</option></select></div>
     <div id="emWorkFields">
-      <div class="fieldrow"><div class="field"><label>出勤</label><input type="time" id="emIn"></div><div class="field"><label>退勤</label><input type="time" id="emOut"></div></div>
+      <div class="field"><label>稼働（出勤〜退勤・複数可）</label><div id="emSessions"></div>
+        <button type="button" class="addbrk" onclick="addSessionRow()">＋ 稼働を追加</button>
+        <div class="note" style="margin-top:4px">※1日複数回の稼働に対応。休憩はリアルタイム打刻で記録され、ここでは時刻の修正のみ行えます。</div></div>
       <div class="fieldrow"><div class="field"><label>勤務場所</label><select id="emLocType" onchange="onEmLoc()">
         <option value="出勤">出勤</option><option value="リモート">リモート</option><option value="その他">その他</option></select></div>
         <div class="field" id="emLocOtherWrap"><label>その他の勤務場所</label><input id="emLocOther" placeholder="必須"></div></div>
-      <div class="field"><label>休憩</label><div id="emBreaks"></div><button type="button" class="addbrk" onclick="addBreakRow()">＋ 休憩を追加</button></div>
     </div>
     <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
     <div class="err-txt" id="emErr"></div>
@@ -251,6 +255,16 @@
       <button class="menu-item" onclick="menuGo('timesheet')"><span class="mi-ic">🖨️</span>勤怠表PDF</button>
     </div>
     <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('menuModal').hidden=true">閉じる</button></div>
+  </div>
+</div>
+
+<!-- お知らせ詳細 -->
+<div class="overlay" id="newsDetailModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="ndTitle"></h3>
+    <div class="note" id="ndDate" style="margin:-4px 0 10px;color:var(--muted)"></div>
+    <p class="plain" id="ndBody" style="white-space:pre-wrap;color:var(--ink);line-height:1.7"></p>
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('newsDetailModal').hidden=true">閉じる</button></div>
   </div>
 </div>
 
@@ -347,16 +361,19 @@ function resolvedLoc(){ const t=document.getElementById("locSelect").value; cons
 function onLocChange(){ const t=document.getElementById("locSelect").value; document.getElementById("locOther").style.display=(t==="その他")?"":"none"; setLoc({type:t,other:document.getElementById("locOther").value.trim()}); }
 function loadLocUI(){ const l=getLoc(); const s=document.getElementById("locSelect"); if(!s)return; s.value=l.type||"出勤"; document.getElementById("locOther").value=l.other||""; document.getElementById("locOther").style.display=(l.type==="その他")?"":"none"; }
 
-/* ---- 打刻 ---- */
-function getTodayRec(){ const r=DB.records(); const k=todayKey(); return r[k]||{in:null,out:null,breaks:[]}; }
+/* ---- 打刻（1日複数回対応） ---- */
+function getTodayRec(){ const r=DB.records(); const k=todayKey(); const rec=r[k]||{}; if(!Array.isArray(rec.sessions)){ rec.sessions=rec.in?[{in:rec.in,out:rec.out||null,breaks:rec.breaks||[]}]:[]; delete rec.in; delete rec.out; delete rec.breaks; } return rec; }
 function putTodayRec(rec){ const r=DB.records(); r[todayKey()]=rec; DB.saveRecords(r); }
-function punchIn(){ const rec=getTodayRec(); if(rec.in)return; if(rec.leave){alert("この日は休暇として登録されています");return;}
+function punchIn(){ const rec=getTodayRec(); if(rec.leave){alert("この日は休暇として登録されています");return;}
+  const ss=rec.sessions; const last=ss[ss.length-1];
+  if(last && !last.out){ alert("退勤していません。先に「退勤」を押してください。"); return; }
   const t=document.getElementById("locSelect").value; const loc=resolvedLoc();
   if(t==="その他" && !loc){ alert("勤務場所（その他）を入力してください"); return; }
-  rec.in=Date.now(); rec.location=loc; putTodayRec(rec); renderAll(); }
-function punchOut(){ const rec=getTodayRec(); if(!rec.in||rec.out)return; const l=(rec.breaks||[])[rec.breaks.length-1]; if(l&&!l.end)l.end=Date.now(); rec.out=Date.now(); putTodayRec(rec); renderAll(); }
-function breakStart(){ const rec=getTodayRec(); if(state(rec)!=="working")return; (rec.breaks=rec.breaks||[]).push({start:Date.now(),end:null}); putTodayRec(rec); renderAll(); }
-function breakEnd(){ const rec=getTodayRec(); const l=(rec.breaks||[])[rec.breaks.length-1]; if(!l||l.end)return; l.end=Date.now(); putTodayRec(rec); renderAll(); }
+  ss.push({in:Date.now(),out:null,breaks:[]}); rec.location=loc; putTodayRec(rec); renderAll(); }
+function punchOut(){ const rec=getTodayRec(); const ss=rec.sessions; const last=ss[ss.length-1]; if(!last||last.out)return;
+  const b=(last.breaks||[])[last.breaks.length-1]; if(b&&!b.end)b.end=Date.now(); last.out=Date.now(); putTodayRec(rec); renderAll(); }
+function breakStart(){ const rec=getTodayRec(); const last=openSession(rec); if(!last)return; const b=(last.breaks||[])[last.breaks.length-1]; if(b&&!b.end)return; (last.breaks=last.breaks||[]).push({start:Date.now(),end:null}); putTodayRec(rec); renderAll(); }
+function breakEnd(){ const rec=getTodayRec(); const last=openSession(rec); if(!last)return; const b=(last.breaks||[])[last.breaks.length-1]; if(!b||b.end)return; b.end=Date.now(); putTodayRec(rec); renderAll(); }
 
 function tick(){
   const now=new Date();
@@ -368,21 +385,15 @@ function tick(){
 }
 function renderToday(){
   const rec=getTodayRec(),s=state(rec);
-  const map={off:"勤務外",working:"勤務中",break:"休憩中",done:"退勤済"};
-  const st=document.getElementById("status");st.dataset.s=s;document.getElementById("statusText").textContent=map[s];
+  const map={off:"勤務外",working:"勤務中",break:"休憩中"};
+  const st=document.getElementById("status");st.dataset.s=s;document.getElementById("statusText").textContent=map[s]||"勤務外";
   const bIn=document.getElementById("btnIn"),bOut=document.getElementById("btnOut"),bBr=document.getElementById("btnBreak"),bRe=document.getElementById("btnResume");
   bIn.disabled=s!=="off";bOut.disabled=!(s==="working"||s==="break");
   if(s==="break"){bBr.style.display="none";bRe.style.display="";bRe.disabled=false;}else{bBr.style.display="";bRe.style.display="none";bBr.disabled=s!=="working";}
-  document.getElementById("tIn").textContent=hm(rec.in);document.getElementById("tOut").textContent=hm(rec.out);
+  document.getElementById("tIn").textContent=hm(firstIn(rec));document.getElementById("tOut").textContent=hm(lastOut(rec));
   document.getElementById("tWork").textContent=fmtDur(workedMs(rec));
-  document.getElementById("tOt").textContent=rec.out?fmtDur(overtimeMin(rec)*60000):"0:00";
-  const pl=document.getElementById("punchlog");
-  if(pl){
-    const log=[];if(rec.in)log.push(["in","出勤",rec.in]);
-    (rec.breaks||[]).forEach(b=>{if(b.start)log.push(["bs","休憩",b.start]);if(b.end)log.push(["be","再開",b.end]);});
-    if(rec.out)log.push(["out","退勤",rec.out]);
-    pl.innerHTML=log.map(([k,l,ts])=>`<span class="chip"><span class="k ${k}">${l}</span><b>${hm(ts)}</b></span>`).join("");
-  }
+  document.getElementById("tOt").textContent=dayComplete(rec)?fmtDur(overtimeMin(rec)*60000):"0:00";
+  const si=document.getElementById("sessInfo");if(si){const n=sessionsOf(rec).length;si.textContent=n>1?`本日の稼働：${n}回`:"";}
 }
 function shiftMonth(n){viewMonthDate.setMonth(viewMonthDate.getMonth()+n);renderAll();}
 
@@ -390,11 +401,11 @@ function renderMyRecords(){
   document.getElementById("mLabel").textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
   const el2=document.getElementById("mLabel2");if(el2)el2.textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
   const recs=DB.records(),sch=DB.schedule();const y=viewMonthDate.getFullYear(),m=viewMonthDate.getMonth()+1;const rows=[];
-  for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r)continue;
+  for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r||(!r.leave&&!sessionsOf(r).length))continue;
     const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;
     let kindTag,inT,outT,wT;
     if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT="—";wT="—";}
-    else{kindTag=`<span class="tag work">勤務</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(r.in);outT=r.out?hm(r.out):"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");}
+    else{const n=sessionsOf(r).length;kindTag=`<span class="tag work">勤務${n>1?`×${n}`:""}</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(firstIn(r));outT=lastOut(r)?hm(lastOut(r)):"—";wT=dayComplete(r)?fmtDur(workedMs(r)):(n?"勤務中":"—");}
     const errs=checkDay(k,r,!!sch[k]).filter(e=>e.level==="error");
     rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.length?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td class="work" data-l="実働">${wT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
   const box=document.getElementById("myRecords");
@@ -418,7 +429,10 @@ function renderPlanStatus(){
   const mk=monthKey(viewMonthDate);const ps=DB.plansub()[mk];const st=ps?ps.status:"none";
   const badge=document.getElementById("planBadge"),note=document.getElementById("planNote");
   const bSub=document.getElementById("btnPlanSubmit"),bUn=document.getElementById("btnPlanUnsubmit");
-  document.getElementById("planSubLabel").textContent=`${mkLabel(mk)} の出勤予定`;
+  const y=viewMonthDate.getFullYear(),m=viewMonthDate.getMonth()+1;const pd=planDeadlineFor(y,m);
+  const dlText=pd.eom?`月末（${pd.day}日）`:`${pd.day}日`;
+  const overdue=(monthKey(new Date())===mk)&&(new Date().getDate()>pd.day)&&(st==="none"||st==="rejected");
+  document.getElementById("planSubLabel").innerHTML=`${mkLabel(mk)} の出勤予定 <span class="d2">提出期限：毎月${dlText}</span>${overdue?' <span class="badge rejected">期限超過</span>':''}`;
   badge.className="badge "+(st==="none"?"none":st);
   badge.textContent={none:"未提出",submitted:"提出済",approved:"承認済み",rejected:"差し戻し"}[st]||st;
   if(st==="none"||st==="rejected"){bSub.style.display="";bUn.style.display="none";bSub.textContent=st==="rejected"?"再提出する":"この月の予定を提出";
@@ -579,38 +593,39 @@ function unsubmitMonth(){const mk=monthKey(viewMonthDate);const s=DB.submits();d
 /* ---- 休暇 ---- */
 function openLeave(){document.getElementById("lvDate").value=todayKey();document.getElementById("lvType").value="paid";document.getElementById("lvNote").value="";document.getElementById("lvErr").textContent="";document.getElementById("leaveModal").hidden=false;}
 function saveLeave(){const k=document.getElementById("lvDate").value;if(!k){document.getElementById("lvErr").textContent="日付を選択してください";return;}
-  const recs=DB.records();const ex=recs[k];if(ex&&ex.in&&!ex.leave){if(!confirm("この日には打刻記録があります。休暇で上書きしますか？"))return;}
-  recs[k]={in:null,out:null,breaks:[],leave:{type:document.getElementById("lvType").value,note:document.getElementById("lvNote").value.trim()}};
+  const recs=DB.records();const ex=recs[k];if(ex&&sessionsOf(ex).length&&!ex.leave){if(!confirm("この日には打刻記録があります。休暇で上書きしますか？"))return;}
+  recs[k]={sessions:[],leave:{type:document.getElementById("lvType").value,note:document.getElementById("lvNote").value.trim()}};
   DB.saveRecords(recs);document.getElementById("leaveModal").hidden=true;renderAll();}
 
 /* ---- 記録の編集（ユーザー） ---- */
-function addBreakRow(s="",e=""){const row=document.createElement("div");row.className="brk-row";row.innerHTML=`<input type="time" class="bs" value="${s}"><span class="tilde">〜</span><input type="time" class="be" value="${e}"><button type="button" class="x" onclick="this.parentNode.remove()">×</button>`;document.getElementById("emBreaks").appendChild(row);}
+function addSessionRow(inV="",outV="",breaks=[]){const row=document.createElement("div");row.className="brk-row";row.innerHTML=`<input type="time" class="ssin" value="${inV}"><span class="tilde">〜</span><input type="time" class="ssout" value="${outV}"><button type="button" class="x" onclick="this.parentNode.remove()">×</button>`;row._breaks=breaks||[];document.getElementById("emSessions").appendChild(row);}
 function onKindChange(){document.getElementById("emWorkFields").style.display=document.getElementById("emKind").value==="work"?"":"none";}
-function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";document.getElementById("emBreaks").innerHTML="";const wrap=document.getElementById("emDateWrap");
+function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";document.getElementById("emSessions").innerHTML="";const wrap=document.getElementById("emDateWrap");
   document.getElementById("emTitle").textContent=k?"記録を編集":"打刻を追加（手動）";
   if(k){const d=parseKey(k);wrap.innerHTML=`<label>日付</label><div class="datefixed">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WD[d.getDay()]})</div>`;}else{wrap.innerHTML=`<label>日付</label><input type="date" id="emDate" value="${todayKey()}">`;}
   const r=k?DB.records()[k]:null;document.getElementById("emKind").value=(r&&r.leave)?r.leave.type:"work";
-  document.getElementById("emIn").value=r&&!r.leave?hmInput(r.in):"";document.getElementById("emOut").value=r&&!r.leave?hmInput(r.out):"";
   document.getElementById("emNote").value=r?(r.note||(r.leave&&r.leave.note)||""):"";
-  // 勤務場所
   let loc=(r&&!r.leave&&r.location)?r.location:"";
   if(!k){ const gl=getLoc(); loc=gl.type==="その他"?(gl.other||"その他"):gl.type; }
   if(loc==="リモート"){document.getElementById("emLocType").value="リモート";document.getElementById("emLocOther").value="";}
   else if(loc==="出勤"||!loc){document.getElementById("emLocType").value="出勤";document.getElementById("emLocOther").value="";}
   else{document.getElementById("emLocType").value="その他";document.getElementById("emLocOther").value=loc;}
   onEmLoc();
-  if(r&&r.breaks)r.breaks.forEach(b=>addBreakRow(hmInput(b.start),hmInput(b.end)));onKindChange();document.getElementById("editModal").hidden=false;}
+  const ss=(r&&!r.leave)?sessionsOf(r):[];
+  if(ss.length){ ss.forEach(s=>addSessionRow(hmInput(s.in),hmInput(s.out),s.breaks||[])); } else { addSessionRow(); }
+  onKindChange();document.getElementById("editModal").hidden=false;}
 function onEmLoc(){document.getElementById("emLocOtherWrap").style.display=document.getElementById("emLocType").value==="その他"?"":"none";}
 function closeEdit(){document.getElementById("editModal").hidden=true;editKey=null;}
 function saveEdit(){const key=editKey||(document.getElementById("emDate")&&document.getElementById("emDate").value);const err=document.getElementById("emErr");if(!key){err.textContent="日付を選択してください";return;}
   const kind=document.getElementById("emKind").value;const note=document.getElementById("emNote").value.trim();const recs=DB.records();
-  if(kind!=="work"){recs[key]={in:null,out:null,breaks:[],leave:{type:kind,note}};DB.saveRecords(recs);closeEdit();renderAll();return;}
-  const inV=document.getElementById("emIn").value,outV=document.getElementById("emOut").value;if(!inV){err.textContent="出勤時刻を入力してください";return;}
-  const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
-  const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
+  if(kind!=="work"){recs[key]={sessions:[],leave:{type:kind,note}};DB.saveRecords(recs);closeEdit();renderAll();return;}
   const lt=document.getElementById("emLocType").value,lo=document.getElementById("emLocOther").value.trim();const location=lt==="その他"?lo:lt;
   if(lt==="その他"&&!location){err.textContent="その他の勤務場所を入力してください";return;}
-  recs[key]={in:inTs,out:outTs,breaks,note,location};DB.saveRecords(recs);closeEdit();renderAll();}
+  const sessions=[];let bad=false;
+  document.querySelectorAll("#emSessions .brk-row").forEach(row=>{const iv=row.querySelector(".ssin").value,ov=row.querySelector(".ssout").value;if(!iv)return;const inTs=tsFrom(key,iv),outTs=ov?tsFrom(key,ov):null;if(outTs&&outTs<inTs)bad=true;sessions.push({in:inTs,out:outTs,breaks:row._breaks||[]});});
+  if(!sessions.length){err.textContent="出勤時刻を入力してください";return;}
+  if(bad){err.textContent="退勤は出勤より後の時刻にしてください";return;}
+  recs[key]={sessions,note,location};DB.saveRecords(recs);closeEdit();renderAll();}
 function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,`この日の記録を削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAll();},true);}
 
 /* ---- 確認モーダル ---- */
@@ -621,15 +636,17 @@ function closeConfirm(){document.getElementById("confirmModal").hidden=true;_cb=
 /* ---- お知らせ / リマインド ---- */
 function renderNews(){
   const box=document.getElementById("newsBox");const list=newsSorted();
-  if(!list.length){box.innerHTML=`<div class="empty" style="padding:10px">お知らせはありません</div>`;markRead(currentUser());return;}
-  box.innerHTML=`<div class="newslist">`+list.map(n=>{
-    const isNew=n.ts>_lastNewsRead;
-    return `<div class="newsitem ${n.pinned?'pinned':''}">
-      <div class="nh">${n.pinned?'<span class="pin">重要</span>':''}${isNew?'<span class="newbadge">NEW</span>':''}<span class="nt">${esc(n.title)}</span><span class="nd">${new Date(n.ts).toLocaleDateString('ja-JP')}</span></div>
-      ${n.body?`<div class="nb">${esc(n.body)}</div>`:''}</div>`;
-  }).join("")+`</div>`;
+  if(!list.length){box.innerHTML=`<span class="news-empty">お知らせはありません</span>`;markRead(currentUser());return;}
+  box.innerHTML=list.map(n=>{const isNew=n.ts>_lastNewsRead;
+    return `<button class="news-chip ${n.pinned?'pinned':''}" onclick="openNewsDetail('${n.id}')">${n.pinned?'<span class="pin">重要</span>':''}${isNew?'<span class="newbadge">NEW</span>':''}<span class="ct">${esc(n.title)}</span></button>`;
+  }).join("");
   markRead(currentUser());
 }
+function openNewsDetail(id){const n=getNews().find(x=>x.id===id);if(!n)return;
+  document.getElementById("ndTitle").innerHTML=`${n.pinned?'<span class="pin">重要</span> ':''}${esc(n.title)}`;
+  document.getElementById("ndDate").textContent=new Date(n.ts).toLocaleString('ja-JP');
+  document.getElementById("ndBody").textContent=n.body||"（本文なし）";
+  document.getElementById("newsDetailModal").hidden=false;}
 function renderReminder(){
   const box=document.getElementById("reminderBox");const r=submissionReminder(currentUser());
   if(!r){box.hidden=true;box.innerHTML="";return;}

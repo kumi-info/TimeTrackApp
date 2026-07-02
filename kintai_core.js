@@ -89,45 +89,52 @@ function tsFrom(dateKey,timeStr){ if(!timeStr) return null; const [h,mi]=timeStr
   const [y,mo,d]=dateKey.split("-").map(Number); return new Date(y,mo-1,d,h,mi,0,0).getTime(); }
 function isPastDay(k){ return k<todayKey(); }
 
-/* ---- calc ---- */
+/* ---- calc（1日=複数セッション対応。旧形式 {in,out,breaks} も透過的に扱う） ---- */
 function overlap(a1,a2,b1,b2){ return Math.max(0,Math.min(a2,b2)-Math.max(a1,b1)); }
-function breakMs(rec,upto){ let t=0; for(const b of (rec.breaks||[])){ const end=b.end??(b.start?upto:b.start); if(b.start&&end)t+=(end-b.start); } return t; }
-function workedMs(rec,now){ now=now||Date.now(); if(!rec.in)return 0; const end=rec.out??now; return (end-rec.in)-breakMs(rec,end); }
-function nightMs(rec){
-  if(!rec.in||!rec.out) return 0;
+function sessionsOf(rec){ if(!rec) return []; if(Array.isArray(rec.sessions)) return rec.sessions; if(rec.in) return [{in:rec.in,out:rec.out||null,breaks:rec.breaks||[]}]; return []; }
+function sBreakMs(sess,upto){ let t=0; for(const b of (sess.breaks||[])){ const end=b.end??(b.start?upto:b.start); if(b.start&&end)t+=(end-b.start); } return t; }
+function sWorkedMs(sess,now){ if(!sess.in)return 0; const end=sess.out??now; return (end-sess.in)-sBreakMs(sess,end); }
+function sNightMs(sess){
+  if(!sess.in||!sess.out) return 0;
   const nightIn=(s,e)=>{
     let total=0; const start=new Date(s); start.setHours(0,0,0,0);
     for(let d=start.getTime(); d<e; d+=86400000){
       const base=new Date(d);
-      const w1s=new Date(base); w1s.setHours(22,0,0,0);
-      const w1e=new Date(base); w1e.setHours(24,0,0,0);
-      const w2s=new Date(base); w2s.setHours(0,0,0,0);
-      const w2e=new Date(base); w2e.setHours(5,0,0,0);
-      total+=overlap(s,e,w1s.getTime(),w1e.getTime());
-      total+=overlap(s,e,w2s.getTime(),w2e.getTime());
+      const w1s=new Date(base); w1s.setHours(22,0,0,0); const w1e=new Date(base); w1e.setHours(24,0,0,0);
+      const w2s=new Date(base); w2s.setHours(0,0,0,0); const w2e=new Date(base); w2e.setHours(5,0,0,0);
+      total+=overlap(s,e,w1s.getTime(),w1e.getTime()); total+=overlap(s,e,w2s.getTime(),w2e.getTime());
     }
     return total;
   };
-  let n=nightIn(rec.in,rec.out);
-  for(const b of (rec.breaks||[])){ if(b.start&&b.end) n-=nightIn(b.start,b.end); }
+  let n=nightIn(sess.in,sess.out);
+  for(const b of (sess.breaks||[])){ if(b.start&&b.end) n-=nightIn(b.start,b.end); }
   return Math.max(0,n);
 }
+function breakMs(rec,upto){ upto=upto||Date.now(); return sessionsOf(rec).reduce((t,s)=>t+sBreakMs(s,s.out??upto),0); }
+function workedMs(rec,now){ now=now||Date.now(); return sessionsOf(rec).reduce((t,s)=>t+sWorkedMs(s,now),0); }
+function nightMs(rec){ return sessionsOf(rec).reduce((t,s)=>t+sNightMs(s),0); }
 const LEGAL_DAY_MIN=480;
-function overtimeMin(rec){ if(!rec.out)return 0; return Math.max(0,Math.round(workedMs(rec)/60000)-LEGAL_DAY_MIN); }
+function dayComplete(rec){ const ss=sessionsOf(rec); return ss.length>0 && ss.every(s=>s.in&&s.out); }
+function overtimeMin(rec){ if(!dayComplete(rec))return 0; return Math.max(0,Math.round(workedMs(rec)/60000)-LEGAL_DAY_MIN); }
 function requiredBreakMin(workMin){ if(workMin>480)return 60; if(workMin>360)return 45; return 0; }
-function state(rec){ if(!rec||!rec.in)return "off"; if(rec.out)return "done";
-  const last=(rec.breaks||[])[rec.breaks.length-1]; if(last&&last.start&&!last.end)return "break"; return "working"; }
-function dayKind(rec){ if(rec&&rec.leave){return rec.leave.type==="absence"?"absence":"leave";} if(rec&&rec.in)return "work"; return null; }
+function openSession(rec){ const ss=sessionsOf(rec); const last=ss[ss.length-1]; return (last&&last.in&&!last.out)?last:null; }
+function firstIn(rec){ const ss=sessionsOf(rec); return ss.length?ss[0].in:null; }
+function lastOut(rec){ const ss=sessionsOf(rec); const l=ss[ss.length-1]; return (l&&l.out)?l.out:null; }
+function state(rec){ if(!rec)return "off"; const last=openSession(rec); if(!last)return "off";
+  const b=(last.breaks||[])[last.breaks.length-1]; if(b&&b.start&&!b.end)return "break"; return "working"; }
+function dayKind(rec){ if(rec&&rec.leave){return rec.leave.type==="absence"?"absence":"leave";} if(sessionsOf(rec).length)return "work"; return null; }
 
 /* ---- per-day error checks ---- */
 function checkDay(k, rec, planned){
   const out=[];
   if(!rec){ if(planned && isPastDay(k)) out.push({level:"warn",msg:"稼働日ですが打刻がありません（打刻漏れの可能性）"}); return out; }
   if(rec.leave) return out;
-  if(rec.in && !rec.out){ if(isPastDay(k)) out.push({level:"error",msg:"退勤打刻がありません"}); return out; }
-  if(rec.in && rec.out){
+  const ss=sessionsOf(rec);
+  if(!ss.length){ if(planned && isPastDay(k)) out.push({level:"warn",msg:"稼働日ですが打刻がありません（打刻漏れの可能性）"}); return out; }
+  if(isPastDay(k) && ss.some(s=>s.in&&!s.out)){ out.push({level:"error",msg:"退勤打刻がありません"}); return out; }
+  if(dayComplete(rec)){
     const wMin=Math.round(workedMs(rec)/60000);
-    const bMin=Math.round(breakMs(rec,rec.out)/60000);
+    const bMin=Math.round(breakMs(rec)/60000);
     const need=requiredBreakMin(wMin);
     if(need>0 && bMin<need) out.push({level:"error",msg:`休憩不足（実働${(wMin/60).toFixed(1)}h：休憩${need}分以上が必要、記録は${bMin}分）`});
     if(wMin>720) out.push({level:"warn",msg:`長時間労働（実働${(wMin/60).toFixed(1)}h）`});
@@ -153,11 +160,12 @@ function aggregate(mkey){
   for(let d=1; d<=daysInMonth(y,m); d++){
     const k=`${y}-${pad(m)}-${pad(d)}`; const r=recs[k]; if(!r)continue;
     if(r.leave){ leave[r.leave.type]=(leave[r.leave.type]||0)+1; continue; }
-    if(r.in && r.out){
+    const ss=sessionsOf(r); if(!ss.length)continue;
+    if(dayComplete(r)){
       workDays++; workMin+=Math.round(workedMs(r)/60000); otMin+=overtimeMin(r);
-      niMin+=Math.round(nightMs(r)/60000); brMin+=Math.round(breakMs(r,r.out)/60000);
+      niMin+=Math.round(nightMs(r)/60000); brMin+=Math.round(breakMs(r)/60000);
       const dow=parseKey(k).getDay(); if(dow===0 || !sch[k]) holidayDays++;
-    } else if(r.in){ workDays++; workMin+=Math.round(workedMs(r)/60000); }
+    } else { workDays++; workMin+=Math.round(workedMs(r)/60000); }
   }
   return {workDays,workMin,otMin,niMin,brMin,holidayDays,leave,
     leaveDays:leave.paid+leave.absence+leave.special+(leave.am+leave.pm)*0.5};
@@ -171,13 +179,14 @@ function buildCSV(mkey){
   const lines=[head.join(",")];
   for(let d=1; d<=daysInMonth(y,m); d++){
     const k=`${y}-${pad(m)}-${pad(d)}`; const r=recs[k]; const dow=WD[parseKey(k).getDay()];
-    if(!r){ lines.push([k,dow,"","","","","","","","",""].join(",")); continue; }
+    if(!r || (!r.leave && !sessionsOf(r).length)){ lines.push([k,dow,"","","","","","","","",""].join(",")); continue; }
     if(r.leave){ lines.push([k,dow,LEAVE_TYPES[r.leave.type]||"休暇","","","","","","","",q(r.leave.note||"")].join(",")); continue; }
-    const bMin=Math.round(breakMs(r,r.out??Date.now())/60000);
-    const wMin=r.out?Math.round(workedMs(r)/60000):"";
-    const ot=r.out?(overtimeMin(r)/60).toFixed(2):"";
-    const ni=r.out?(Math.round(nightMs(r)/60000)/60).toFixed(2):"";
-    lines.push([k,dow,"勤務",q(r.location||""),hm(r.in),r.out?hm(r.out):"",bMin,wMin===""?"":(wMin/60).toFixed(2),ot,ni,q(r.note||"")].join(","));
+    const complete=dayComplete(r);
+    const bMin=Math.round(breakMs(r)/60000);
+    const wMin=complete?Math.round(workedMs(r)/60000):"";
+    const ot=complete?(overtimeMin(r)/60).toFixed(2):"";
+    const ni=complete?(Math.round(nightMs(r)/60000)/60).toFixed(2):"";
+    lines.push([k,dow,"勤務",q(r.location||""),hm(firstIn(r)),lastOut(r)?hm(lastOut(r)):"",bMin,wMin===""?"":(wMin/60).toFixed(2),ot,ni,q(r.note||"")].join(","));
   }
   return "﻿"+lines.join("\r\n");
 }
@@ -294,8 +303,8 @@ function printTimesheet(mkey){
     const k=`${y}-${pad(m)}-${pad(d)}`; const r=recs[k]; const dow=WD[parseKey(k).getDay()];
     let kind="",iT="",oT="",bT="",wT="",oT2="";
     if(r&&r.leave){ kind=LEAVE_TYPES[r.leave.type]||"休暇"; }
-    else if(r&&r.in){ kind="勤務"; iT=hm(r.in); oT=r.out?hm(r.out):"";
-      bT=r.out?Math.round(breakMs(r,r.out)/60000):""; wT=r.out?fmtDur(workedMs(r)):""; oT2=r.out?fmtDur(overtimeMin(r)*60000):""; }
+    else if(r&&sessionsOf(r).length){ kind="勤務"; iT=hm(firstIn(r)); oT=lastOut(r)?hm(lastOut(r)):""; const complete=dayComplete(r);
+      bT=complete?Math.round(breakMs(r)/60000):""; wT=complete?fmtDur(workedMs(r)):""; oT2=complete?fmtDur(overtimeMin(r)*60000):""; }
     rows+=`<tr><td>${m}/${d}</td><td>${dow}</td><td>${kind}</td><td>${iT}</td><td>${oT}</td><td>${bT}</td><td>${wT}</td><td>${oT2}</td></tr>`;
   }
   printDoc(`<div class="pdoc"><h1>勤 怠 表</h1>
@@ -329,9 +338,11 @@ function printSalaryCert(mk){
 }
 
 /* ===== config ===== */
-/* submitDay: 数値(1-31) または "eom"(=月末) */
-function getCfg(){ return Object.assign({submitDay:"eom", payDay:25, companyName:""}, _get(K.CFG,{})); }
-function submitDayFor(y,m){ const c=getCfg(); if(String(c.submitDay)==="eom") return {day:daysInMonth(y,m), eom:true}; return {day:Math.min(daysInMonth(y,m),Math.max(1,Number(c.submitDay)||25)), eom:false}; }
+/* submitDay / planDeadline: 数値(1-31) または "eom"(=月末) */
+function getCfg(){ return Object.assign({submitDay:"eom", payDay:25, planDeadline:"eom", companyName:""}, _get(K.CFG,{})); }
+function dayOf(v,y,m){ if(String(v)==="eom") return {day:daysInMonth(y,m), eom:true}; return {day:Math.min(daysInMonth(y,m),Math.max(1,Number(v)||25)), eom:false}; }
+function submitDayFor(y,m){ return dayOf(getCfg().submitDay,y,m); }
+function planDeadlineFor(y,m){ return dayOf(getCfg().planDeadline,y,m); }
 function saveCfg(patch){ _set(K.CFG, Object.assign(getCfg(), patch)); }
 
 /* ===== announcements (お知らせ) ===== */
@@ -534,12 +545,12 @@ global.Kintai = {
   getUsers, saveUsers, upsertUser, removeUser, userLabel, userEmail,
   allData, getData, setData, setCurrentUser, currentUser, DB, onExternalChange,
   ymd, todayKey, monthKey, mkLabel, parseKey, daysInMonth, hm, hmInput, fmtDur, fmtH, tsFrom, isPastDay,
-  overlap, breakMs, workedMs, nightMs, overtimeMin, requiredBreakMin, state, dayKind,
+  overlap, sessionsOf, firstIn, lastOut, dayComplete, openSession, breakMs, workedMs, nightMs, overtimeMin, requiredBreakMin, state, dayKind,
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
   AK, hashPw, AUTH, authState, currentRole, getAccounts, getAccount, saveAccounts, hasRoleAccount, upsertWorkerAccount,
   setHeaderName, showAuth, gotoLogin, gotoSignup, doSetup, doLogin, logout, openSettings, saveSettings,
   CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert,
-  getCfg, saveCfg, submitDayFor,
+  getCfg, saveCfg, submitDayFor, planDeadlineFor,
   transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,
   getRead, markRead, lastRead, unreadNews,

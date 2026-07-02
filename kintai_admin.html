@@ -46,7 +46,8 @@
       <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
-      <p class="note" style="max-width:340px;margin:12px auto 0;color:var(--muted);text-align:center">管理者アカウントの追加は、ログイン後に「アカウント管理」から行います。</p>
+      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">パスワードをお忘れですか？（管理者アカウントを新規作成）</button></div>
+      <p class="note" style="max-width:340px;margin:12px auto 0;color:var(--muted);text-align:center">パスワード再設定は、既存の管理者がログイン後「アカウント管理」から行えます。管理者が誰もログインできない場合のみ、上のボタンで新しい管理者を作成してください。</p>
     </div>
   </div>
 
@@ -153,6 +154,9 @@
             <option value="15">15日</option><option value="10">10日</option><option value="5">5日</option><option value="28">28日</option></select></div>
           <div class="field"><label>給与支給日（毎月）</label><input id="cfgPayDay" type="number" min="1" max="31" inputmode="numeric"></div>
         </div>
+        <div class="field"><label>出勤予定カレンダーの提出期限（毎月）</label><select id="cfgPlanDeadline">
+          <option value="eom">月末</option><option value="25">25日</option><option value="20">20日</option>
+          <option value="15">15日</option><option value="10">10日</option><option value="5">5日</option></select></div>
         <div class="field"><label>会社名（任意）</label><input id="cfgCompany"></div>
         <div style="text-align:right"><button class="mini solid" onclick="saveCfgForm()">設定を保存</button></div>
         <p class="note" style="color:var(--muted);margin-top:8px">提出日を過ぎると労働者画面に提出リマインドが表示されます。</p>
@@ -195,15 +199,29 @@
       <option value="work">勤務</option><option value="paid">有給休暇</option><option value="am">午前半休</option>
       <option value="pm">午後半休</option><option value="special">特別休暇</option><option value="absence">欠勤</option></select></div>
     <div id="emWorkFields">
-      <div class="fieldrow"><div class="field"><label>出勤</label><input type="time" id="emIn"></div><div class="field"><label>退勤</label><input type="time" id="emOut"></div></div>
+      <div class="field"><label>稼働（出勤〜退勤・複数可）</label><div id="emSessions"></div>
+        <button type="button" class="addbrk" onclick="addSessionRow()">＋ 稼働を追加</button>
+        <div class="note" style="margin-top:4px">※1日複数回の稼働に対応。休憩はリアルタイム打刻で記録され、ここでは時刻の修正のみ行えます。</div></div>
       <div class="fieldrow"><div class="field"><label>勤務場所</label><select id="emLocType" onchange="onEmLoc()">
         <option value="出勤">出勤</option><option value="リモート">リモート</option><option value="その他">その他</option></select></div>
         <div class="field" id="emLocOtherWrap"><label>その他の勤務場所</label><input id="emLocOther" placeholder="必須"></div></div>
-      <div class="field"><label>休憩</label><div id="emBreaks"></div><button type="button" class="addbrk" onclick="addBreakRow()">＋ 休憩を追加</button></div>
     </div>
     <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
     <div class="err-txt" id="emErr"></div>
     <div class="modal-actions"><button class="mini" onclick="closeEdit()">キャンセル</button><button class="mini solid" onclick="saveEdit()">保存</button></div>
+  </div>
+</div>
+
+<!-- パスワード再設定モーダル -->
+<div class="overlay" id="pwResetModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>パスワード再設定</h3>
+    <p class="plain">対象：<b id="prUserLabel"></b></p>
+    <input type="hidden" id="prUser">
+    <div class="field"><label>新しいパスワード（8文字以上）</label><input id="prPw" type="password"></div>
+    <div class="err-txt" id="prErr"></div>
+    <p class="note">※設定後、本人に新しいパスワードを共有してください。</p>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('pwResetModal').hidden=true">キャンセル</button><button class="mini solid" onclick="savePwReset()">再設定</button></div>
   </div>
 </div>
 
@@ -356,7 +374,7 @@ function renderAccounts(){
   if(!keys.length){box.innerHTML=`<div class="empty">アカウントがありません</div>`;return;}
   box.innerHTML=keys.map(u=>{const a=accts[u];const roleLabel=a.role==="admin"?"管理者":"労働者";
     const del=(u===me)?`<span class="note" style="color:var(--muted)">ログイン中</span>`:`<button class="iconbtn del" onclick="deleteAccount('${u}')">削除</button>`;
-    return `<div class="subrow"><div><span class="m">${esc(a.name||u)}</span> <span class="d2">${esc(u)}</span></div><div style="display:flex;gap:10px;align-items:center"><span class="badge ${a.role==='admin'?'submitted':'approved'}">${roleLabel}</span>${del}</div></div>`;}).join("");
+    return `<div class="subrow"><div><span class="m">${esc(a.name||u)}</span> <span class="d2">${esc(u)}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge ${a.role==='admin'?'submitted':'approved'}">${roleLabel}</span><button class="iconbtn" onclick="openPwReset('${u}')">PW再設定</button>${del}</div></div>`;}).join("");
 }
 function openAdminAdd(){ ["aaName","aaUser","aaEmail","aaPw"].forEach(id=>document.getElementById(id).value=""); document.getElementById("aaErr").textContent=""; document.getElementById("adminAddModal").hidden=false; }
 async function saveAdminAccount(){
@@ -369,6 +387,11 @@ async function saveAdminAccount(){
   const accts=getAccounts(); accts[user]={name,email,hash:await hashPw(pw),role:"admin"}; saveAccounts(accts);
   document.getElementById("adminAddModal").hidden=true; renderAccounts(); alert("管理者アカウントを追加しました");
 }
+function openPwReset(u){ document.getElementById("prUser").value=u; document.getElementById("prUserLabel").textContent=userLabel(u)+"（"+u+"）"; document.getElementById("prPw").value=""; document.getElementById("prErr").textContent=""; document.getElementById("pwResetModal").hidden=false; }
+async function savePwReset(){ const u=document.getElementById("prUser").value; const pw=document.getElementById("prPw").value; const err=document.getElementById("prErr");
+  if(pw.length<8){err.textContent="パスワードは8文字以上にしてください";return;}
+  const a=getAccounts(); if(!a[u]){err.textContent="アカウントが見つかりません";return;} a[u].hash=await hashPw(pw); saveAccounts(a);
+  document.getElementById("pwResetModal").hidden=true; alert(`「${u}」のパスワードを再設定しました。本人に共有してください。`); }
 function deleteAccount(u){
   const me=(AUTH.cred()&&AUTH.cred().username);
   if(u===me){alert("ログイン中のアカウントは削除できません");return;}
@@ -437,10 +460,10 @@ function applyPlanMonth(){applyPlan(adminMonth());}
 /* ---- 勤怠記録 ---- */
 function renderRecords(){
   const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const recs=DB.records(),sch=DB.schedule();const rows=[];
-  for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r)continue;
+  for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r||(!r.leave&&!sessionsOf(r).length))continue;
     const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;let kindTag,inT,outT,brT,wT,otT;
     if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT=brT=wT=otT="—";}
-    else{kindTag=`<span class="tag work">勤務</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(r.in);outT=r.out?hm(r.out):"—";const bm=Math.round(breakMs(r,r.out??Date.now())/60000);brT=bm>0?bm+"分":"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");otT=r.out?fmtDur(overtimeMin(r)*60000):"—";}
+    else{const n=sessionsOf(r).length;kindTag=`<span class="tag work">勤務${n>1?`×${n}`:""}</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(firstIn(r));outT=lastOut(r)?hm(lastOut(r)):"—";const bm=Math.round(breakMs(r)/60000);brT=bm>0?bm+"分":"—";wT=dayComplete(r)?fmtDur(workedMs(r)):(n?"勤務中":"—");otT=dayComplete(r)?fmtDur(overtimeMin(r)*60000):"—";}
     const errs=checkDay(k,r,!!sch[k]);
     rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.some(e=>e.level==='error')?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td data-l="休憩">${brT}</td><td class="work" data-l="実働">${wT}</td><td data-l="時間外">${otT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
   const box=document.getElementById("adminRecords");
@@ -523,10 +546,11 @@ function saveNewsForm(){ const t=document.getElementById("nwTitle").value.trim()
 function delNews(id){ openConfirm("お知らせの削除","このお知らせを削除します。","削除する",()=>{deleteNews(id);renderNewsAdmin();}); }
 
 /* ---- 設定 ---- */
-function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=String(c.submitDay);document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgCompany").value=c.companyName; }
+function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=String(c.submitDay);document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgPlanDeadline").value=String(c.planDeadline);document.getElementById("cfgCompany").value=c.companyName; }
 function saveCfgForm(){ const rawSd=document.getElementById("cfgSubmitDay").value;const sd=(rawSd==="eom")?"eom":Math.min(31,Math.max(1,Number(rawSd)||25));
+  const rawPl=document.getElementById("cfgPlanDeadline").value;const pl=(rawPl==="eom")?"eom":Math.min(31,Math.max(1,Number(rawPl)||25));
   const pd=Math.min(31,Math.max(1,Number(document.getElementById("cfgPayDay").value)||25));
-  saveCfg({submitDay:sd,payDay:pd,companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
+  saveCfg({submitDay:sd,payDay:pd,planDeadline:pl,companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
 
 /* ---- 確認モーダル・記録編集・契約編集（管理者） ---- */
 function openConfirm(t,msg,ok,cb){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;document.getElementById("cmOk").textContent=ok;_cb=cb;document.getElementById("confirmModal").hidden=false;}
@@ -534,31 +558,33 @@ function closeConfirm(){document.getElementById("confirmModal").hidden=true;_cb=
 function confirmClearAll(){openConfirm("この労働者の全記録を消去",`${userLabel(adminUser)} さんの勤怠記録・稼働日・提出状況を消去します。<br><b>この操作は元に戻せません。</b><br>消去前にCSV/PDF出力でのバックアップを推奨します。`,"すべて消去する",()=>{DB.saveRecords({});DB.saveSchedule({});DB.saveSubmits({});DB.savePlan({});DB.savePlansub({});renderAdmin();});}
 function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,"この日の記録を削除します。<br><b>この操作は元に戻せません。</b>","削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAdmin();});}
 
-function addBreakRow(s="",e=""){const row=document.createElement("div");row.className="brk-row";row.innerHTML=`<input type="time" class="bs" value="${s}"><span class="tilde">〜</span><input type="time" class="be" value="${e}"><button type="button" class="x" onclick="this.parentNode.remove()">×</button>`;document.getElementById("emBreaks").appendChild(row);}
+function addSessionRow(inV="",outV="",breaks=[]){const row=document.createElement("div");row.className="brk-row";row.innerHTML=`<input type="time" class="ssin" value="${inV}"><span class="tilde">〜</span><input type="time" class="ssout" value="${outV}"><button type="button" class="x" onclick="this.parentNode.remove()">×</button>`;row._breaks=breaks||[];document.getElementById("emSessions").appendChild(row);}
 function onKindChange(){document.getElementById("emWorkFields").style.display=document.getElementById("emKind").value==="work"?"":"none";}
-function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";document.getElementById("emBreaks").innerHTML="";const wrap=document.getElementById("emDateWrap");
+function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";document.getElementById("emSessions").innerHTML="";const wrap=document.getElementById("emDateWrap");
   document.getElementById("emTitle").textContent=k?"記録を編集":"記録を追加";
   if(k){const d=parseKey(k);wrap.innerHTML=`<label>日付</label><div class="datefixed">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WD[d.getDay()]})</div>`;}else{wrap.innerHTML=`<label>日付</label><input type="date" id="emDate" value="${todayKey()}">`;}
   const r=k?DB.records()[k]:null;document.getElementById("emKind").value=(r&&r.leave)?r.leave.type:"work";
-  document.getElementById("emIn").value=r&&!r.leave?hmInput(r.in):"";document.getElementById("emOut").value=r&&!r.leave?hmInput(r.out):"";
   document.getElementById("emNote").value=r?(r.note||(r.leave&&r.leave.note)||""):"";
   const loc=(r&&!r.leave&&r.location)?r.location:"";
   if(loc==="リモート"){document.getElementById("emLocType").value="リモート";document.getElementById("emLocOther").value="";}
   else if(loc==="出勤"||!loc){document.getElementById("emLocType").value="出勤";document.getElementById("emLocOther").value="";}
   else{document.getElementById("emLocType").value="その他";document.getElementById("emLocOther").value=loc;}
   onEmLoc();
-  if(r&&r.breaks)r.breaks.forEach(b=>addBreakRow(hmInput(b.start),hmInput(b.end)));onKindChange();document.getElementById("editModal").hidden=false;}
+  const ss=(r&&!r.leave)?sessionsOf(r):[];
+  if(ss.length){ ss.forEach(s=>addSessionRow(hmInput(s.in),hmInput(s.out),s.breaks||[])); } else { addSessionRow(); }
+  onKindChange();document.getElementById("editModal").hidden=false;}
 function onEmLoc(){document.getElementById("emLocOtherWrap").style.display=document.getElementById("emLocType").value==="その他"?"":"none";}
 function closeEdit(){document.getElementById("editModal").hidden=true;editKey=null;}
 function saveEdit(){const key=editKey||(document.getElementById("emDate")&&document.getElementById("emDate").value);const err=document.getElementById("emErr");if(!key){err.textContent="日付を選択してください";return;}
   const kind=document.getElementById("emKind").value;const note=document.getElementById("emNote").value.trim();const recs=DB.records();
-  if(kind!=="work"){recs[key]={in:null,out:null,breaks:[],leave:{type:kind,note}};DB.saveRecords(recs);closeEdit();renderAdmin();return;}
-  const inV=document.getElementById("emIn").value,outV=document.getElementById("emOut").value;if(!inV){err.textContent="出勤時刻を入力してください";return;}
-  const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
-  const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
+  if(kind!=="work"){recs[key]={sessions:[],leave:{type:kind,note}};DB.saveRecords(recs);closeEdit();renderAdmin();return;}
   const lt=document.getElementById("emLocType").value,lo=document.getElementById("emLocOther").value.trim();const location=lt==="その他"?lo:lt;
   if(lt==="その他"&&!location){err.textContent="その他の勤務場所を入力してください";return;}
-  recs[key]={in:inTs,out:outTs,breaks,note,location};DB.saveRecords(recs);closeEdit();renderAdmin();}
+  const sessions=[];let bad=false;
+  document.querySelectorAll("#emSessions .brk-row").forEach(row=>{const iv=row.querySelector(".ssin").value,ov=row.querySelector(".ssout").value;if(!iv)return;const inTs=tsFrom(key,iv),outTs=ov?tsFrom(key,ov):null;if(outTs&&outTs<inTs)bad=true;sessions.push({in:inTs,out:outTs,breaks:row._breaks||[]});});
+  if(!sessions.length){err.textContent="出勤時刻を入力してください";return;}
+  if(bad){err.textContent="退勤は出勤より後の時刻にしてください";return;}
+  recs[key]={sessions,note,location};DB.saveRecords(recs);closeEdit();renderAdmin();}
 
 let _contractPdf=undefined; let _ctPdfName="";
 function onContractPdf(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
