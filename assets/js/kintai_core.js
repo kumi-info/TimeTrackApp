@@ -433,13 +433,6 @@ function adminNotifications(){
   return out;
 }
 
-/* mailto helper (静的アプリのため実送信は不可 → メーラーを開く) */
-function mailtoLink(to,subject,body){
-  const p=[]; if(subject)p.push("subject="+encodeURIComponent(subject)); if(body)p.push("body="+encodeURIComponent(body));
-  return "mailto:"+encodeURIComponent(to||"")+(p.length?("?"+p.join("&")):"");
-}
-function openMail(to,subject,body){ try{ window.location.href=mailtoLink(to,subject,body); }catch(e){} }
-
 /* ===== auth DOM handlers (shared; both pages use identical ids) ===== */
 function setHeaderName(){
   const c=AUTH.cred(); const el=document.getElementById("who");
@@ -562,6 +555,6 @@ global.Kintai = {
   transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,
   getRead, markRead, lastRead, unreadNews,
-  missingPunchDays, submissionReminder, adminNotifications, mailtoLink, openMail
+  missingPunchDays, submissionReminder, adminNotifications
 };
 })(window);

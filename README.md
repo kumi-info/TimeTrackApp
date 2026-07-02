@@ -4,15 +4,22 @@
 勤怠表の提出・承認、出勤予定の申請、雇用契約の管理、お知らせ配信までを1セットにまとめています。
 データは各ブラウザの `localStorage` に保存されます（外部サーバーへの送信はありません）。
 
-## 画面構成
+## ファイル構成
 
-| ファイル | 役割 |
-|---|---|
-| `kintai_user.html` | 労働者用（打刻・記録編集・出勤予定入力/提出・勤怠表提出・お知らせ閲覧） |
-| `kintai_admin.html` | 管理者用（労働者単位の確認・承認/差し戻し・給与支給・お知らせ配信・設定） |
-| `kintai_core.js` | 両画面共通のロジック（データ層・集計・認証・PDF・通知など） |
-| `kintai.css` | 両画面共通のスタイル |
-| `.htaccess` / `.htpasswd` | Apache系サーバー用のBasic認証（任意） |
+```
+TimeTrackApp/
+├─ kintai_user.html      … 労働者用の画面（打刻・記録編集・出勤予定・経費申請・お知らせ など）
+├─ kintai_admin.html     … 管理者用の画面（労働者管理・承認/差し戻し・給与支給・お知らせ配信・設定）
+├─ assets/
+│  ├─ css/kintai.css     … 両画面共通のスタイル
+│  ├─ js/kintai_core.js  … 両画面共通のロジック（データ層・集計・認証・PDF・通知など）
+│  └─ icons/             … アイコン・ファビコン
+├─ .htaccess / .htpasswd … Apache系サーバー用のBasic認証（任意）
+└─ README.md
+```
+
+- 各HTMLは「マークアップ＋その画面固有のスクリプト」だけを持ち、共通処理はすべて `assets/js/kintai_core.js`（グローバル `window.Kintai`）に集約しています。
+- 画面は `window.ROLE`（`'admin'` / `'worker'`）で役割を指定します。
 
 ## 主な機能
 
