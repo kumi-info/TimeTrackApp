@@ -36,7 +36,7 @@ header .sub{font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.
 @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(255,255,255,.08)}50%{box-shadow:0 0 0 8px rgba(255,255,255,.02)}}
 @media (prefers-reduced-motion:reduce){.dot{animation:none!important}}
 
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 8px}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:18px 0 8px}
 .btn{border:0;border-radius:16px;padding:20px 14px;font-size:1.12rem;font-weight:800;color:#fff;cursor:pointer;
   transition:transform .08s,box-shadow .2s,opacity .2s;display:flex;flex-direction:column;align-items:center;gap:4px;line-height:1.2;font-family:inherit}
 .btn small{font-size:.66rem;font-weight:700;letter-spacing:.1em;opacity:.85}
@@ -195,9 +195,9 @@ td.work{font-weight:800;color:var(--teal-deep)}
 /* expense (経費) */
 .tag.exp{background:#fdeede;color:#9a5b12}
 .exp-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--line);cursor:pointer;vertical-align:middle}
-.img-preview{margin-top:8px;position:relative;display:inline-block}
-.img-preview img{max-width:100%;max-height:160px;border-radius:10px;border:1px solid var(--line);display:block}
-.img-preview .rm{position:absolute;top:6px;right:6px;background:var(--danger);color:#fff;border:0;border-radius:8px;width:28px;height:28px;font-weight:800;cursor:pointer}
+.img-preview{margin-top:10px;position:relative;display:inline-block;max-width:240px;vertical-align:top}
+.img-preview img{width:100%;max-height:200px;object-fit:contain;border-radius:10px;border:1px solid var(--line);display:block;background:#f7fbfb}
+.img-preview .rm{position:absolute;top:-9px;right:-9px;background:var(--danger);color:#fff;border:2px solid #fff;border-radius:50%;width:26px;height:26px;font-weight:800;font-size:.9rem;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}
 .filebtn{display:inline-block;border:1px dashed var(--line);background:#f8fbfb;border-radius:11px;padding:9px 12px;font-weight:800;font-size:.82rem;color:var(--teal-deep);cursor:pointer}
 .filebtn:hover{border-color:var(--teal);background:#f0f9f9}
 .filebtn input{display:none}

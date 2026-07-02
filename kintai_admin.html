@@ -16,16 +16,12 @@
   <header>
     <div class="logo">刻</div>
     <div><h1>勤怠管理</h1><div class="sub">ADMIN CONSOLE</div></div>
-    <div class="headername" id="hdrName" hidden>
+    <div class="headername" id="hdrName" style="display:none">
       <button class="mini notifbell" onclick="scrollToPanel('notifPanel')">🔔<span class="notifcount" id="notifCount" hidden>0</span></button>
       <div class="who" id="who"></div>
       <span class="rolebadge admin">管理者</span>
       <button class="mini" onclick="openSettings()">設定</button>
       <button class="mini solid danger" onclick="logout()">ログアウト</button>
-    </div>
-    <div class="headername" id="hdrGuest">
-      <button class="mini" onclick="gotoSignup()">＋ 新規登録</button>
-      <button class="mini solid" onclick="gotoLogin()">ログイン</button>
     </div>
   </header>
 

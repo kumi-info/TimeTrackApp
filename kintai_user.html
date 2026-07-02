@@ -16,16 +16,12 @@
   <header>
     <div class="logo">刻</div>
     <div><h1>勤怠管理</h1><div class="sub">ATTENDANCE</div></div>
-    <div class="headername" id="hdrName" hidden>
+    <div class="headername" id="hdrName" style="display:none">
       <div class="who" id="who"></div>
       <span class="rolebadge user">労働者</span>
       <button class="mini" onclick="openMenu()">☰ メニュー</button>
       <button class="mini" onclick="openSettings()">設定</button>
       <button class="mini solid danger" onclick="logout()">ログアウト</button>
-    </div>
-    <div class="headername" id="hdrGuest">
-      <button class="mini" onclick="gotoSignup()">＋ 新規登録</button>
-      <button class="mini solid" onclick="gotoLogin()">ログイン</button>
     </div>
   </header>
 
@@ -85,7 +81,6 @@
         <button class="mini" onclick="openLeave()">＋ 休暇を登録</button>
         <button class="mini solid" onclick="openSubmitDialog()">📤 勤怠表提出</button>
         <button class="mini" onclick="openEdit(null)">✍ 手入力</button>
-        <button class="mini" onclick="openMenu()">☰ メニュー</button>
       </div>
 
       <!-- 提出リマインド -->
@@ -235,7 +230,7 @@
     </div>
     <div class="field"><label>交通機関・備考（任意）</label><input type="text" id="trNoteInput" placeholder="例）電車（○○線）／領収書あり など"></div>
     <div class="field"><label>画像（領収書など・任意）</label>
-      <label class="filebtn">📷 画像を選択<input type="file" id="trImage" accept="image/*" onchange="onExpImage(event)"></label>
+      <div><label class="filebtn">📷 画像を選択<input type="file" id="trImage" accept="image/*" onchange="onExpImage(event)"></label></div>
       <div class="img-preview" id="trImgPreview" hidden><img id="trImgTag" alt="添付画像"><button type="button" class="rm" onclick="clearExpImage()">×</button></div>
     </div>
     <div class="err-txt" id="trErr"></div>

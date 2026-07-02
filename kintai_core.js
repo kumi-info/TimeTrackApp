@@ -409,8 +409,9 @@ function showAuth(mode){
   if(li) li.hidden = mode!=="login";
   if(w) w.hidden = (mode==="ready");
   const hn=document.getElementById("hdrName"), hg=document.getElementById("hdrGuest");
-  if(hn) hn.hidden = (mode!=="ready");            // ログイン中のみ表示
-  if(hg) hg.hidden = (mode==="ready");            // 未ログイン時のみ表示（ログインボタン）
+  // ヘッダーのメニュー/設定/ログアウトはログイン中のみ表示（未ログイン時はボタンを出さない）
+  if(hn) hn.style.display = (mode==="ready") ? "flex" : "none";
+  if(hg) hg.style.display = "none";
 }
 /* 未ログイン時のヘッダー「ログイン／新規登録」から呼ぶ */
 function gotoLogin(){ showAuth(AUTH.cred()?"login":"setup"); }
