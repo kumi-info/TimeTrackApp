@@ -316,6 +316,14 @@ function printTimesheet(mkey){
   </div>`);
 }
 
+/* 当月の支給見込額（雇用契約の賃金 × 勤怠実績からの概算） */
+function salaryEstimate(mk){
+  const c=getContract(); const agg=aggregate(mk); const amt=Number(c.wageAmount)||0;
+  if(c.wageType==="hourly") return {text:yen(Math.round(amt*(agg.workMin/60))), basis:`時給${yen(amt)} × 実働${fmtH(agg.workMin)}h`};
+  if(c.wageType==="daily")  return {text:yen(amt*agg.workDays), basis:`日給${yen(amt)} × 出勤${agg.workDays}日`};
+  if(c.wageType==="monthly")return {text:yen(amt), basis:`月給${yen(amt)}`};
+  return {text:"—", basis:"賃金未登録"};
+}
 /* 給与証明書（勤怠記録＋雇用契約から作成する参考書類） */
 function printSalaryCert(mk){
   const c=getContract(); const emp=c.employee||userLabel(CURRENT_USER)||"";
@@ -549,7 +557,7 @@ global.Kintai = {
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
   AK, hashPw, AUTH, authState, currentRole, getAccounts, getAccount, saveAccounts, hasRoleAccount, upsertWorkerAccount,
   setHeaderName, showAuth, gotoLogin, gotoSignup, doSetup, doLogin, logout, openSettings, saveSettings,
-  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert,
+  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert, salaryEstimate,
   getCfg, saveCfg, submitDayFor, planDeadlineFor,
   transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,

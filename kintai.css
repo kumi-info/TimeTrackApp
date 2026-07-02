@@ -276,6 +276,11 @@ footer{text-align:center;margin-top:26px;font-size:.72rem;color:var(--muted);fon
 .crosslink{text-align:center;margin-top:10px;font-size:.76rem}
 .crosslink a{color:var(--teal-deep);font-weight:800;text-decoration:none}
 .crosslink a:hover{text-decoration:underline}
+.linklike{color:var(--teal-deep);font-weight:800;font-size:.82rem;text-decoration:underline;cursor:pointer;background:none;border:0;font-family:inherit;padding:0}
+.linklike:hover{color:var(--teal)}
+.news-count{font-size:.7rem;color:var(--muted);font-weight:800;margin-left:8px;align-self:center;flex:none}
+.news-anim{animation:newsslide .45s ease}
+@keyframes newsslide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
 
 @media (max-width:600px){
   .today,.sumgrid{grid-template-columns:1fr 1fr}

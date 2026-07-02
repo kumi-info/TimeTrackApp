@@ -46,8 +46,8 @@
       <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
-      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">パスワードをお忘れですか？（管理者アカウントを新規作成）</button></div>
-      <p class="note" style="max-width:340px;margin:12px auto 0;color:var(--muted);text-align:center">パスワード再設定は、既存の管理者がログイン後「アカウント管理」から行えます。管理者が誰もログインできない場合のみ、上のボタンで新しい管理者を作成してください。</p>
+      <div style="margin-top:12px;text-align:center"><a class="linklike" onclick="gotoSignup();return false" href="#">パスワードをお忘れですか？（管理者アカウントを新規作成）</a></div>
+      <p class="note" style="max-width:340px;margin:12px auto 0;color:var(--muted);text-align:center">パスワード再設定は、既存の管理者がログイン後「アカウント管理」から行えます。管理者が誰もログインできない場合のみ、上のリンクで新しい管理者を作成してください。</p>
     </div>
   </div>
 
@@ -63,6 +63,14 @@
       </div>
     </div>
 
+    <!-- 労働者一覧・管理 -->
+    <section class="panel" id="workerListPanel">
+      <div class="panel-head"><h2>👥 労働者一覧</h2>
+        <div class="tools"><button class="mini" onclick="openWorker()">＋ 労働者を追加</button></div>
+      </div>
+      <div class="panel-body"><div id="workerListBox"></div></div>
+    </section>
+
     <!-- 通知センター -->
     <section class="panel" id="notifPanel">
       <div class="panel-head"><h2>🔔 通知</h2></div>
@@ -76,7 +84,7 @@
 
     <section class="panel">
       <div class="panel-head"><h2>集計</h2>
-        <div class="tools"><button class="mini" onclick="printTimesheet(adminMonth())">勤怠表PDF</button><button class="mini" onclick="downloadCSV(adminMonth())">CSV出力</button></div>
+        <div class="tools"><button class="mini" onclick="openDocList('timesheet')">勤怠表</button><button class="mini" onclick="openDocList('salary')">給与証明書</button><button class="mini" onclick="downloadCSV(adminMonth())">CSV出力</button></div>
       </div>
       <div class="panel-body"><div class="sumgrid" id="sumGrid"></div>
         <p class="note" style="margin-top:12px;color:var(--muted);font-size:.74rem">時間外＝1日8時間超の実働。深夜＝22:00〜翌5:00の実働。休日勤務＝稼働日でない日/日曜の勤務（目安）。割増賃金の計算は社労士にご確認ください。</p>
@@ -212,6 +220,19 @@
   </div>
 </div>
 
+<!-- 労働者 編集モーダル -->
+<div class="overlay" id="workerEditModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>労働者を編集</h3>
+    <input type="hidden" id="weUser">
+    <div class="field"><label>お名前（表示名）</label><input id="weName"></div>
+    <div class="field"><label>メールアドレス（任意）</label><input id="weEmail" type="email"></div>
+    <div class="err-txt" id="weErr"></div>
+    <p class="note">※ユーザー名（ログインID）とパスワードは変更できません（パスワードは「PW再設定」から）。</p>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('workerEditModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveWorkerEdit()">保存</button></div>
+  </div>
+</div>
+
 <!-- パスワード再設定モーダル -->
 <div class="overlay" id="pwResetModal" hidden>
   <div class="modal" role="dialog" aria-modal="true">
@@ -311,6 +332,25 @@
   </div>
 </div>
 
+<!-- 勤怠表/給与証明書 一覧 -->
+<div class="overlay" id="docListModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:560px">
+    <h3 id="dlTitle">勤怠表</h3>
+    <div class="monthnav" style="justify-content:center;margin-bottom:12px"><button class="nav" onclick="dlShiftYear(-1)">‹</button><b id="dlYear">—</b><button class="nav" onclick="dlShiftYear(1)">›</button></div>
+    <div id="dlList" style="max-height:52vh;overflow:auto"></div>
+    <p class="note" style="margin-top:8px">※過去5年分まで表示できます。「PDF」で印刷ダイアログを開き「PDFとして保存」でダウンロードできます。</p>
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('docListModal').hidden=true">閉じる</button></div>
+  </div>
+</div>
+<!-- 勤怠表/給与証明書 詳細 -->
+<div class="overlay" id="docDetailModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="ddTitle"></h3>
+    <div id="ddBody"></div>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('docDetailModal').hidden=true">戻る</button><button class="mini solid" id="ddPdf">PDFダウンロード</button></div>
+  </div>
+</div>
+
 <!-- 画像拡大 -->
 <div class="overlay" id="imgModal" hidden>
   <div class="modal" style="max-width:660px"><img id="imgModalTag" alt="添付画像" style="width:100%;border-radius:10px;display:block">
@@ -353,6 +393,22 @@ function renderWorkerBar(){
   document.getElementById("workerMail").textContent=adminUser?(userEmail(adminUser)||"メール未登録"):"労働者が未登録です";
 }
 function onWorkerChange(){ adminUser=document.getElementById("workerSel").value; saveSel(adminUser); setCurrentUser(adminUser); renderAdmin(); }
+/* 労働者一覧（名簿）を表示。各行から 表示切替 / 編集 / 削除 ができる */
+function renderWorkerList(){
+  const users=getUsers();const keys=Object.keys(users);const accts=getAccounts();const box=document.getElementById("workerListBox");
+  if(!keys.length){box.innerHTML=`<div class="empty"><b>労働者がいません</b>「＋ 労働者を追加」から登録してください</div>`;return;}
+  box.innerHTML=keys.map(u=>{const a=accts[u];const login=(a&&a.role==="worker")?'<span class="badge approved">ログイン可</span>':'<span class="badge none">ログイン未設定</span>';
+    const cur=u===adminUser?' <span class="badge submitted">表示中</span>':'';
+    return `<div class="subrow"><div><span class="m">${esc(userLabel(u))}</span> <span class="d2">${esc(u)}</span>${cur}<div class="note" style="font-size:.72rem;color:var(--muted);margin-top:2px">${esc(userEmail(u)||'メール未登録')} ／ ${login}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="mini" onclick="selectWorker('${u}')">表示</button><button class="mini" onclick="openWorkerEdit('${u}')">編集</button><button class="mini danger" onclick="deleteWorker('${u}')">削除</button></div></div>`;}).join("");
+}
+function selectWorker(u){ adminUser=u;saveSel(u);setCurrentUser(u);renderAdmin();window.scrollTo({top:0,behavior:'smooth'}); }
+function deleteWorker(u){ openConfirm(`労働者「${userLabel(u)}」を削除`,`この労働者の勤怠データ・提出・ログインをすべて削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{ removeUser(u); const a=getAccounts();delete a[u];saveAccounts(a); if(adminUser===u){saveSel("");ensureAdminUser();} renderAdmin(); }); }
+function openWorkerEdit(u){ document.getElementById("weUser").value=u;document.getElementById("weName").value=userLabel(u);document.getElementById("weEmail").value=userEmail(u);document.getElementById("weErr").textContent="";document.getElementById("workerEditModal").hidden=false; }
+function saveWorkerEdit(){ const u=document.getElementById("weUser").value;const name=document.getElementById("weName").value.trim();const email=document.getElementById("weEmail").value.trim();const err=document.getElementById("weErr");
+  if(!name){err.textContent="お名前を入力してください";return;}
+  upsertUser(u,name,email); const a=getAccounts();if(a[u]){a[u].name=name;a[u].email=email;saveAccounts(a);}
+  document.getElementById("workerEditModal").hidden=true;renderAdmin(); }
 function openWorker(){ ["wkName","wkUser","wkEmail","wkPw"].forEach(id=>document.getElementById(id).value=""); document.getElementById("wkErr").textContent=""; document.getElementById("workerModal").hidden=false; }
 async function saveWorker(){
   const name=document.getElementById("wkName").value.trim(),user=document.getElementById("wkUser").value.trim(),email=document.getElementById("wkEmail").value.trim();
@@ -457,15 +513,23 @@ function clearSchedule(){const y=adminMonthDate.getFullYear(),m=adminMonthDate.g
 function applyPlan(mk){const plan=DB.plan();const sch=DB.schedule();const [y,m]=mk.split("-").map(Number);for(let d=1;d<=daysInMonth(y,m);d++){const k=`${y}-${pad(m)}-${pad(d)}`;if(plan[k])sch[k]=true;}DB.saveSchedule(sch);renderAdmin();}
 function applyPlanMonth(){applyPlan(adminMonth());}
 
-/* ---- 勤怠記録 ---- */
+/* ---- 勤怠記録（1日複数回はセッションごとに1行） ---- */
+function sessWorked(s){if(!s.in)return 0;const end=s.out||Date.now();const br=(s.breaks||[]).reduce((t,b)=>t+((b.start&&b.end)?(b.end-b.start):0),0);return (end-s.in)-br;}
+function sessBreakMin(s){return Math.round((s.breaks||[]).reduce((t,b)=>t+((b.start&&b.end)?(b.end-b.start):0),0)/60000);}
 function renderRecords(){
   const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const recs=DB.records(),sch=DB.schedule();const rows=[];
   for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r||(!r.leave&&!sessionsOf(r).length))continue;
-    const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;let kindTag,inT,outT,brT,wT,otT;
-    if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT=brT=wT=otT="—";}
-    else{const n=sessionsOf(r).length;kindTag=`<span class="tag work">勤務${n>1?`×${n}`:""}</span>${r.location?` <span class="tag loc">${esc(r.location)}</span>`:""}`;inT=hm(firstIn(r));outT=lastOut(r)?hm(lastOut(r)):"—";const bm=Math.round(breakMs(r)/60000);brT=bm>0?bm+"分":"—";wT=dayComplete(r)?fmtDur(workedMs(r)):(n?"勤務中":"—");otT=dayComplete(r)?fmtDur(overtimeMin(r)*60000):"—";}
-    const errs=checkDay(k,r,!!sch[k]);
-    rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.some(e=>e.level==='error')?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td data-l="休憩">${brT}</td><td class="work" data-l="実働">${wT}</td><td data-l="時間外">${otT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
+    const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;
+    const errs=checkDay(k,r,!!sch[k]);const trCls=`${k===todayKey()?'is-today':''} ${errs.some(e=>e.level==='error')?'is-err':''}`;
+    const act=`<div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div>`;
+    if(r.leave){const kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;
+      rows.push(`<tr class="${trCls}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">—</td><td data-l="退勤">—</td><td data-l="休憩">—</td><td class="work" data-l="実働">—</td><td data-l="時間外">—</td><td class="actcell" data-l="操作">${act}</td></tr>`);
+    } else {
+      const ss=sessionsOf(r);const loc=r.location?` <span class="tag loc">${esc(r.location)}</span>`:"";const dayOt=dayComplete(r)?fmtDur(overtimeMin(r)*60000):"—";
+      ss.forEach((s,si)=>{const idx=ss.length>1?` <span class="d2">${si+1}回目</span>`:"";const bm=sessBreakMin(s);
+        rows.push(`<tr class="${trCls}"><td class="datecell" data-l="日付">${dl}${idx}</td><td data-l="区分"><span class="tag work">勤務</span>${loc}</td><td data-l="出勤">${hm(s.in)}</td><td data-l="退勤">${s.out?hm(s.out):"—"}</td><td data-l="休憩">${bm>0?bm+"分":"—"}</td><td class="work" data-l="実働">${s.out?fmtDur(sessWorked(s)):"勤務中"}</td><td data-l="時間外">${si===0?dayOt:''}</td><td class="actcell" data-l="操作">${si===0?act:''}</td></tr>`);});
+    }
+  }
   const box=document.getElementById("adminRecords");
   box.innerHTML=rows.length?`<table><thead><tr><th>日付</th><th>区分</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>時間外</th><th>操作</th></tr></thead><tbody>${rows.join("")}</tbody></table>`:`<div class="empty"><b>この月の記録はありません</b>「＋ 記録を追加」または打刻で記録されます</div>`;
 }
@@ -584,6 +648,8 @@ function saveEdit(){const key=editKey||(document.getElementById("emDate")&&docum
   document.querySelectorAll("#emSessions .brk-row").forEach(row=>{const iv=row.querySelector(".ssin").value,ov=row.querySelector(".ssout").value;if(!iv)return;const inTs=tsFrom(key,iv),outTs=ov?tsFrom(key,ov):null;if(outTs&&outTs<inTs)bad=true;sessions.push({in:inTs,out:outTs,breaks:row._breaks||[]});});
   if(!sessions.length){err.textContent="出勤時刻を入力してください";return;}
   if(bad){err.textContent="退勤は出勤より後の時刻にしてください";return;}
+  if(key>todayKey()){err.textContent="未来の日付は登録できません";return;}
+  const now=Date.now();if(sessions.some(s=>(s.in&&s.in>now)||(s.out&&s.out>now))){err.textContent="未来の時刻は登録できません";return;}
   recs[key]={sessions,note,location};DB.saveRecords(recs);closeEdit();renderAdmin();}
 
 let _contractPdf=undefined; let _ctPdfName="";
@@ -615,11 +681,43 @@ function saveContractForm(){const g=id=>document.getElementById(id).value.trim()
   saveContract(obj);
   document.getElementById("contractModal").hidden=true;renderContract();}
 
+/* ---- 勤怠表 / 給与証明書：1年分の一覧 → 月を選んで詳細・PDF ---- */
+let _dlType='timesheet',_dlYear=null;
+function openDocList(type){ setCurrentUser(adminUser); _dlType=type; _dlYear=adminMonthDate.getFullYear(); document.getElementById('dlTitle').textContent=(type==='salary')?'📑 給与証明書':'🖨️ 勤怠表'; renderDocList(); document.getElementById('docListModal').hidden=false; }
+function dlShiftYear(n){ const max=new Date().getFullYear(),min=max-4; _dlYear=Math.min(max,Math.max(min,_dlYear+n)); renderDocList(); }
+function renderDocList(){
+  document.getElementById('dlYear').textContent=_dlYear+'年';
+  const rows=[];const now=new Date();
+  for(let m=1;m<=12;m++){ const mk=`${_dlYear}-${pad(m)}`; const agg=aggregate(mk);
+    const future=(_dlYear>now.getFullYear())||(_dlYear===now.getFullYear()&&m>now.getMonth()+1);
+    const has=agg.workDays>0||agg.leaveDays>0;
+    let summary; if(future) summary='—'; else if(!has) summary='記録なし';
+    else summary=(_dlType==='salary')?`支給見込 ${salaryEstimate(mk).text}`:`出勤${agg.workDays}日・実働${fmtH(agg.workMin)}h`;
+    const dis=(future||!has)?'style="opacity:.5;pointer-events:none"':'';
+    rows.push(`<div class="subrow"><div><span class="m">${_dlYear}年${m}月</span> <span class="d2">${summary}</span></div><div style="display:flex;gap:8px" ${dis}><button class="mini" onclick="dlDetail('${mk}')">詳細</button><button class="mini solid" onclick="dlPdf('${mk}')">PDF</button></div></div>`);
+  }
+  document.getElementById('dlList').innerHTML=rows.join('');
+}
+function dlPdf(mk){ if(_dlType==='salary')printSalaryCert(mk); else printTimesheet(mk); }
+function dlDetail(mk){
+  const [y,m]=mk.split('-').map(Number); const agg=aggregate(mk);
+  document.getElementById('ddTitle').textContent=`${y}年${m}月 の${_dlType==='salary'?'給与証明書':'勤怠表'}（${userLabel(adminUser)}）`;
+  let body;
+  if(_dlType==='salary'){ const est=salaryEstimate(mk);
+    body=`<div class="contract-card"><div class="ci"><div class="l">対象月</div><div class="v">${y}年${m}月</div></div><div class="ci"><div class="l">出勤日数</div><div class="v">${agg.workDays}日</div></div><div class="ci"><div class="l">実働時間</div><div class="v">${fmtH(agg.workMin)}時間</div></div><div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}時間</div></div><div class="ci full"><div class="l">支給見込額</div><div class="v">${est.text}（${est.basis}）</div></div></div>`;
+  } else {
+    body=`<div class="contract-card"><div class="ci"><div class="l">出勤日数</div><div class="v">${agg.workDays}日</div></div><div class="ci"><div class="l">休暇日数</div><div class="v">${agg.leaveDays}日</div></div><div class="ci"><div class="l">総実働</div><div class="v">${fmtH(agg.workMin)}h</div></div><div class="ci"><div class="l">時間外</div><div class="v">${fmtH(agg.otMin)}h</div></div><div class="ci"><div class="l">深夜</div><div class="v">${fmtH(agg.niMin)}h</div></div><div class="ci"><div class="l">休憩合計</div><div class="v">${fmtH(agg.brMin)}h</div></div></div>`;
+  }
+  document.getElementById('ddBody').innerHTML=body;
+  document.getElementById('ddPdf').onclick=()=>dlPdf(mk);
+  document.getElementById('docDetailModal').hidden=false;
+}
+
 /* ---- render / boot ---- */
 function renderAdmin(){
   setCurrentUser(adminUser);
   document.getElementById("mLabel").textContent=`${adminMonthDate.getFullYear()}年${adminMonthDate.getMonth()+1}月`;
-  renderWorkerBar();renderNotifications();renderAccounts();
+  renderWorkerBar();renderWorkerList();renderNotifications();renderAccounts();
   if(!adminUser){ ["sumGrid","contractBox","errBox","calBox","adminRecords","subBox","planSubBox","trAdminBox"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<div class="empty">「＋ 労働者を追加」から登録してください</div>`;}); renderNewsAdmin();renderCfg();return; }
   renderSummary();renderContract();renderErrors();renderCalendar();renderRecords();renderSubmissions();renderPlanSubs();renderTransportAdmin();renderNewsAdmin();renderCfg();
 }
