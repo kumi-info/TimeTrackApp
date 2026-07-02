@@ -136,10 +136,9 @@
           <div class="field"><label>勤怠表の提出日（毎月）</label><input id="cfgSubmitDay" type="number" min="1" max="31" inputmode="numeric"></div>
           <div class="field"><label>給与支給日（毎月）</label><input id="cfgPayDay" type="number" min="1" max="31" inputmode="numeric"></div>
         </div>
-        <div class="field"><label>管理者メール（入力漏れ報告の宛先）</label><input id="cfgAdminEmail" type="email" placeholder="admin@example.com"></div>
         <div class="field"><label>会社名（任意）</label><input id="cfgCompany"></div>
         <div style="text-align:right"><button class="mini solid" onclick="saveCfgForm()">設定を保存</button></div>
-        <p class="note" style="color:var(--muted);margin-top:8px">提出日を過ぎると労働者画面に提出リマインドが表示されます。メール送信は端末のメーラーを開く方式です（サーバー不要）。</p>
+        <p class="note" style="color:var(--muted);margin-top:8px">提出日を過ぎると労働者画面に提出リマインドが表示されます。</p>
       </div>
     </section>
 
@@ -313,14 +312,13 @@ function renderNotifications(){
   box.innerHTML=`<div class="notiflist">`+list.map(n=>{
     const act = n.type==="submit"
       ? `<button class="mini solid" onclick="viewWorker('${n.user}')">確認する</button>`
-      : `<button class="mini solid warn" onclick="markPaid('${n.user}','${n.mk}')">給与支給済</button><button class="mini" onclick="notifyPay('${n.user}','${n.mk}')">通知メール</button>`;
+      : `<button class="mini solid warn" onclick="markPaid('${n.user}','${n.mk}')">給与支給済</button>`;
     return `<div class="notifitem ${n.type}"><span class="ic">${n.type==='submit'?'📥':'💰'}</span><div>${esc(n.msg)}</div><div class="n-actions">${act}</div></div>`;
   }).join("")+`</div>`;
 }
 function viewWorker(u){ adminUser=u; saveSel(u); setCurrentUser(u); renderAdmin(); scrollToPanel('subPanel'); }
 function setSubmitStatus(u,mk,patch){ const d=getData(u); d.submits=d.submits||{}; if(d.submits[mk]){ Object.assign(d.submits[mk],patch); setData(u,d); } }
 function markPaid(u,mk){ setSubmitStatus(u,mk,{status:"paid",paidAt:Date.now()}); renderAdmin(); }
-function notifyPay(u,mk){ openMail(userEmail(u),"【給与】支給のお知らせ",`${userLabel(u)} さん\n\n${mkLabel(mk)} 分の給与を支給します。ご確認ください。`); }
 
 /* ---- サマリー・エラー・契約 ---- */
 function renderSummary(){
@@ -414,9 +412,9 @@ function saveNewsForm(){ const t=document.getElementById("nwTitle").value.trim()
 function delNews(id){ openConfirm("お知らせの削除","このお知らせを削除します。","削除する",()=>{deleteNews(id);renderNewsAdmin();}); }
 
 /* ---- 設定 ---- */
-function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=c.submitDay;document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgAdminEmail").value=c.adminEmail;document.getElementById("cfgCompany").value=c.companyName; }
+function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=c.submitDay;document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgCompany").value=c.companyName; }
 function saveCfgForm(){ const sd=Math.min(31,Math.max(1,Number(document.getElementById("cfgSubmitDay").value)||25));const pd=Math.min(31,Math.max(1,Number(document.getElementById("cfgPayDay").value)||25));
-  saveCfg({submitDay:sd,payDay:pd,adminEmail:document.getElementById("cfgAdminEmail").value.trim(),companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
+  saveCfg({submitDay:sd,payDay:pd,companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
 
 /* ---- 確認モーダル・記録編集・契約編集（管理者） ---- */
 function openConfirm(t,msg,ok,cb){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;document.getElementById("cmOk").textContent=ok;_cb=cb;document.getElementById("confirmModal").hidden=false;}

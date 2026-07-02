@@ -50,101 +50,102 @@
   </div>
 
   <div id="appUser" hidden>
-    <section class="hero">
-      <div class="date" id="date">—</div>
-      <div class="clock" id="clock">--:--<span class="sec" id="sec">00</span></div>
-      <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">勤務外</span></div>
-    </section>
+    <!-- ===== ホーム ===== -->
+    <div id="viewHome">
+      <section class="hero">
+        <div class="date" id="date">—</div>
+        <div class="clock" id="clock">--:--<span class="sec" id="sec">00</span></div>
+        <div class="status" id="status" data-s="off"><span class="dot"></span><span id="statusText">勤務外</span></div>
+      </section>
 
-    <div class="actions">
-      <button class="btn btn-in" id="btnIn" onclick="punchIn()">出勤<small>CLOCK IN</small></button>
-      <button class="btn btn-out" id="btnOut" onclick="punchOut()" disabled>退勤<small>CLOCK OUT</small></button>
-      <button class="btn btn-break" id="btnBreak" onclick="breakStart()" disabled>休憩開始<small>BREAK</small></button>
-      <button class="btn btn-resume" id="btnResume" onclick="breakEnd()" disabled style="display:none">休憩終了<small>RESUME</small></button>
-    </div>
-
-    <div class="today">
-      <div class="cell"><div class="lbl">出勤</div><div class="val" id="tIn">--:--</div></div>
-      <div class="cell"><div class="lbl">退勤</div><div class="val" id="tOut">--:--</div></div>
-      <div class="cell"><div class="lbl">実働</div><div class="val work" id="tWork">0:00</div></div>
-      <div class="cell"><div class="lbl">時間外</div><div class="val ot" id="tOt">0:00</div></div>
-    </div>
-    <div class="punchlog" id="punchlog"></div>
-
-    <!-- 休暇の隣：クイックアクセス -->
-    <div class="quickbar">
-      <button class="mini" onclick="openLeave()">＋ 休暇を登録</button>
-      <button class="mini" onclick="scrollToPanel('planPanel')">🗓 勤怠カレンダー</button>
-      <button class="mini solid" onclick="submitMonth()">📤 勤怠表提出</button>
-      <button class="mini" onclick="scrollToPanel('contractPanel')">📄 雇用契約</button>
-    </div>
-
-    <!-- 提出リマインド -->
-    <div id="reminderBox" hidden></div>
-
-    <!-- お知らせ -->
-    <section class="panel">
-      <div class="panel-head"><h2>📢 お知らせ</h2></div>
-      <div class="panel-body" id="newsBox"></div>
-    </section>
-
-    <section class="panel" id="recPanel">
-      <div class="panel-head"><h2>📋 今月の記録</h2>
-        <div class="monthnav"><button class="nav" onclick="shiftMonth(-1)">‹</button><b id="mLabel">—</b><button class="nav" onclick="shiftMonth(1)">›</button></div>
+      <div class="actions">
+        <button class="btn btn-in" id="btnIn" onclick="punchIn()">出勤<small>CLOCK IN</small></button>
+        <button class="btn btn-out" id="btnOut" onclick="punchOut()" disabled>退勤<small>CLOCK OUT</small></button>
+        <button class="btn btn-break" id="btnBreak" onclick="breakStart()" disabled>休憩開始<small>BREAK</small></button>
+        <button class="btn btn-resume" id="btnResume" onclick="breakEnd()" disabled style="display:none">休憩終了<small>RESUME</small></button>
       </div>
-      <div class="panel-head" style="border-top:1px solid var(--line)"><span style="font-size:.76rem;color:var(--muted);font-weight:700">打刻内容の修正・追加ができます</span>
-        <div class="tools"><button class="mini" onclick="openEdit(null)">＋ 記録を追加</button></div>
-      </div>
-      <div id="myRecords"></div>
-    </section>
 
-    <section class="panel" id="planPanel">
-      <div class="panel-head"><h2>🗓 出勤予定カレンダー（入力）</h2>
-        <div class="monthnav"><button class="nav" onclick="shiftMonth(-1)">‹</button><b id="mLabel2">—</b><button class="nav" onclick="shiftMonth(1)">›</button></div>
+      <div class="today">
+        <div class="cell"><div class="lbl">出勤</div><div class="val" id="tIn">--:--</div></div>
+        <div class="cell"><div class="lbl">退勤</div><div class="val" id="tOut">--:--</div></div>
+        <div class="cell"><div class="lbl">実働</div><div class="val work" id="tWork">0:00</div></div>
+        <div class="cell"><div class="lbl">時間外</div><div class="val ot" id="tOt">0:00</div></div>
       </div>
-      <div class="panel-body">
-        <div class="cal" id="calBox"></div>
-        <div class="callegend"><span><i class="lg plan"></i>出勤予定</span><span><i class="lg rec"></i>打刻あり</span><span><i class="lg lv"></i>休暇</span></div>
-        <p class="note" style="margin-top:10px;color:var(--muted);font-size:.76rem">日付をタップで出勤予定をON/OFF。入力後「提出」で管理者に共有されます。</p>
-        <div class="subrow" style="margin-top:12px;border-top:1px solid var(--line)">
-          <span class="m" id="planSubLabel">—</span><span class="badge none" id="planBadge">未提出</span>
+      <div class="punchlog" id="punchlog"></div>
+
+      <!-- 休暇の隣：クイックアクセス -->
+      <div class="quickbar">
+        <button class="mini" onclick="openLeave()">＋ 休暇を登録</button>
+        <button class="mini" onclick="showView('calendar')">🗓 勤怠カレンダー</button>
+        <button class="mini solid" onclick="openSubmitDialog()">📤 勤怠表提出</button>
+        <button class="mini" onclick="openContractModal()">📄 雇用契約</button>
+      </div>
+
+      <!-- 提出リマインド -->
+      <div id="reminderBox" hidden></div>
+
+      <!-- お知らせ -->
+      <section class="panel">
+        <div class="panel-head"><h2>📢 お知らせ</h2></div>
+        <div class="panel-body" id="newsBox" style="padding:12px 14px"></div>
+      </section>
+
+      <section class="panel" id="recPanel">
+        <div class="panel-head"><h2>📋 今月の記録</h2>
+          <div class="monthnav"><button class="nav" onclick="shiftMonth(-1)">‹</button><b id="mLabel">—</b><button class="nav" onclick="shiftMonth(1)">›</button></div>
         </div>
-        <p class="note" id="planNote" style="color:var(--muted);margin:8px 0 12px"></p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="mini solid" id="btnPlanSubmit" onclick="submitPlan()">この月の予定を提出</button>
-          <button class="mini" id="btnPlanUnsubmit" onclick="unsubmitPlan()" style="display:none">提出を取り消す</button>
+        <div class="panel-head" style="border-top:1px solid var(--line)"><span style="font-size:.76rem;color:var(--muted);font-weight:700">打刻内容の修正・追加ができます</span>
+          <div class="tools"><button class="mini" onclick="openEdit(null)">＋ 記録を追加</button></div>
         </div>
-      </div>
-    </section>
+        <div id="myRecords"></div>
+      </section>
 
-    <section class="panel" id="contractPanel">
-      <div class="panel-head"><h2>📄 雇用契約</h2>
-        <div class="tools"><button class="mini" onclick="printContract()">PDF出力</button></div>
-      </div>
-      <div class="panel-body" id="contractBox"></div>
-    </section>
-
-    <section class="panel" id="submitPanel">
-      <div class="panel-head"><h2>📤 勤怠表の提出</h2>
-        <div class="tools"><button class="mini" onclick="printTimesheet(monthKey(viewMonthDate))">勤怠表PDF</button></div>
-      </div>
-      <div class="panel-body">
-        <div class="subrow"><span class="m" id="subMonthLabel">—</span><span class="badge none" id="subBadge">未提出</span></div>
-        <p class="note" id="subNote" style="color:var(--muted);margin:8px 0 14px">提出すると管理者が確認できます。</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="mini solid" id="btnSubmit" onclick="submitMonth()">この月を提出する</button>
-          <button class="mini" id="btnUnsubmit" onclick="unsubmitMonth()" style="display:none">提出を取り消す</button>
+      <!-- 勤怠表の提出状況 -->
+      <section class="panel" id="submitPanel">
+        <div class="panel-head"><h2>📤 勤怠表の提出</h2>
+          <div class="tools"><button class="mini" onclick="printTimesheet(monthKey(viewMonthDate))">勤怠表PDF</button></div>
         </div>
-      </div>
-    </section>
+        <div class="panel-body">
+          <div class="subrow"><span class="m" id="subMonthLabel">—</span><span class="badge none" id="subBadge">未提出</span></div>
+          <p class="note" id="subNote" style="color:var(--muted);margin:8px 0 14px">提出すると管理者が確認できます。</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="mini solid" id="btnSubmit" onclick="openSubmitDialog()">この月を提出する</button>
+            <button class="mini" id="btnUnsubmit" onclick="unsubmitMonth()" style="display:none">提出を取り消す</button>
+          </div>
+        </div>
+      </section>
 
-    <div class="note-law">
-      <b>労働時間の記録について</b><br>
-      打刻時刻はそのまま客観的記録として保存されます。実働・時間外（1日8時間超）・深夜（22:00〜翌5:00）は自動集計されます。<br>
-      勤怠記録は労働基準法により原則5年（当分の間3年）の保存義務があります。割増賃金の計算・36協定・就業規則の適用は社会保険労務士にご確認ください（本ツールは記録・集計の補助です）。
+      <div class="note-law">
+        <b>労働時間の記録について</b><br>
+        打刻時刻はそのまま客観的記録として保存されます。実働・時間外（1日8時間超）・深夜（22:00〜翌5:00）は自動集計されます。<br>
+        勤怠記録は労働基準法により原則5年（当分の間3年）の保存義務があります。割増賃金の計算・36協定・就業規則の適用は社会保険労務士にご確認ください（本ツールは記録・集計の補助です）。
+      </div>
+
+      <div class="crosslink">管理者の方はこちら → <a href="kintai_admin.html">管理画面を開く</a></div>
     </div>
 
-    <div class="crosslink">管理者の方はこちら → <a href="kintai_admin.html">管理画面を開く</a></div>
+    <!-- ===== 勤怠カレンダー（別ページ） ===== -->
+    <div id="viewCalendar" hidden>
+      <div style="margin-bottom:8px"><button class="mini" onclick="showView('home')">← ホームに戻る</button></div>
+      <section class="panel" id="planPanel">
+        <div class="panel-head"><h2>🗓 出勤予定カレンダー（入力）</h2>
+          <div class="monthnav"><button class="nav" onclick="shiftMonth(-1)">‹</button><b id="mLabel2">—</b><button class="nav" onclick="shiftMonth(1)">›</button></div>
+        </div>
+        <div class="panel-body">
+          <div class="cal" id="calBox"></div>
+          <div class="callegend"><span><i class="lg plan"></i>出勤予定</span><span><i class="lg rec"></i>打刻あり</span><span><i class="lg lv"></i>休暇</span></div>
+          <p class="note" style="margin-top:10px;color:var(--muted);font-size:.76rem">日付をタップで出勤予定をON/OFF。入力後「提出」で管理者に共有されます。</p>
+          <div class="subrow" style="margin-top:12px;border-top:1px solid var(--line)">
+            <span class="m" id="planSubLabel">—</span><span class="badge none" id="planBadge">未提出</span>
+          </div>
+          <p class="note" id="planNote" style="color:var(--muted);margin:8px 0 12px"></p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="mini solid" id="btnPlanSubmit" onclick="submitPlan()">この月の予定を提出</button>
+            <button class="mini" id="btnPlanUnsubmit" onclick="unsubmitPlan()" style="display:none">提出を取り消す</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 
   <footer>データはこのブラウザ内に保存されます</footer>
@@ -183,10 +184,19 @@
   </div>
 </div>
 
+<!-- 雇用契約モーダル -->
+<div class="overlay" id="contractViewModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>📄 雇用契約</h3>
+    <div id="contractBox"></div>
+    <div class="modal-actions"><button class="mini" onclick="printContract()">PDF出力</button><button class="mini solid" onclick="document.getElementById('contractViewModal').hidden=true">閉じる</button></div>
+  </div>
+</div>
+
 <!-- 確認モーダル -->
 <div class="overlay" id="confirmModal" hidden>
   <div class="modal" role="dialog" aria-modal="true"><h3 id="cmTitle">確認</h3><p id="cmMsg" class="plain"></p>
-    <div class="modal-actions"><button class="mini" onclick="closeConfirm()">キャンセル</button><button class="mini solid" id="cmOk">実行する</button></div></div>
+    <div class="modal-actions"><button class="mini" id="cmCancel" onclick="closeConfirm()">キャンセル</button><button class="mini solid" id="cmOk">実行する</button></div></div>
 </div>
 
 <!-- 入力漏れ通知モーダル -->
@@ -197,7 +207,6 @@
     <div id="missList" style="font-size:.9rem;color:var(--ink);max-height:180px;overflow:auto"></div>
     <div class="modal-actions">
       <button class="mini" onclick="document.getElementById('missModal').hidden=true">後で</button>
-      <button class="mini" onclick="missReport()">メールで報告</button>
       <button class="mini solid" onclick="missGoInput()">入力する</button>
     </div>
   </div>
@@ -225,16 +234,22 @@
 <script src="kintai_core.js"></script>
 <script>
 /* ===== USER 画面ロジック ===== */
-Object.assign(window, Kintai);   // 共通コアをグローバルに展開（onclick から呼べるように）
+Object.assign(window, Kintai);
 
 let viewMonthDate=new Date();
 let editKey=null;
 let _cb=null;
 let _started=false;
 let _missShown=false;
+let _lastNewsRead=0;
 
-/* ---- helpers ---- */
-function scrollToPanel(id){ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+/* ---- ページ切替 ---- */
+function showView(name){
+  document.getElementById('viewHome').hidden = name!=='home';
+  document.getElementById('viewCalendar').hidden = name!=='calendar';
+  if(name==='calendar') renderPlanCalendar();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
 /* ---- 打刻 ---- */
 function getTodayRec(){ const r=DB.records(); const k=todayKey(); return r[k]||{in:null,out:null,breaks:[]}; }
@@ -271,7 +286,7 @@ function shiftMonth(n){viewMonthDate.setMonth(viewMonthDate.getMonth()+n);render
 
 function renderMyRecords(){
   document.getElementById("mLabel").textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
-  document.getElementById("mLabel2").textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
+  const el2=document.getElementById("mLabel2");if(el2)el2.textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
   const recs=DB.records(),sch=DB.schedule();const y=viewMonthDate.getFullYear(),m=viewMonthDate.getMonth()+1;const rows=[];
   for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r)continue;
     const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;
@@ -310,11 +325,14 @@ function renderPlanStatus(){
   else{bSub.style.display="none";bUn.style.display="none";note.textContent="管理者が確定しました。";}
 }
 function submitPlan(){const mk=monthKey(viewMonthDate);
-  openConfirm("出勤予定の提出",`${mkLabel(mk)} の出勤予定を提出します。よろしいですか？`,"提出する",()=>{const s=DB.plansub();s[mk]={submittedAt:Date.now(),status:"submitted"};DB.savePlansub(s);renderPlanCalendar();});}
+  openConfirm("出勤予定の提出",`${mkLabel(mk)} の出勤予定を提出しますか？`,"提出する",()=>{const s=DB.plansub();s[mk]={submittedAt:Date.now(),status:"submitted"};DB.savePlansub(s);renderPlanCalendar();});}
 function unsubmitPlan(){const mk=monthKey(viewMonthDate);const s=DB.plansub();delete s[mk];DB.savePlansub(s);renderPlanCalendar();}
 
-function renderContract(){document.getElementById("contractBox").innerHTML=contractView(false);}
+/* ---- 雇用契約（ポップアップ） ---- */
+function renderContract(){const box=document.getElementById("contractBox");if(box)box.innerHTML=contractView(false);}
+function openContractModal(){renderContract();document.getElementById("contractViewModal").hidden=false;}
 
+/* ---- 勤怠表の提出 ---- */
 function renderSubmission(){
   const mkey=monthKey(viewMonthDate);
   document.getElementById("subMonthLabel").textContent=`${mkLabel(mkey)} 分`;
@@ -327,16 +345,22 @@ function renderSubmission(){
   else if(st==="paid"){note.textContent=`承認・給与支給済み${s.paidAt?`（${new Date(s.paidAt).toLocaleString('ja-JP')}）`:""}`;bSub.style.display="none";bUn.style.display="none";}
   else if(st==="rejected"){note.textContent=`差し戻されました${s.comment?`：${s.comment}`:""}。修正のうえ再提出してください。`;bSub.style.display="";bSub.textContent="再提出する";bUn.style.display="none";}
 }
-function submitMonth(){
-  const mk=monthKey(viewMonthDate);
-  const errs=checkMonth(mk).filter(e=>e.level==='error');
-  const warn=errs.length?`<br><b>注意：${errs.length}件のエラー（退勤漏れ・休憩不足など）があります。</b>`:"";
-  openConfirm("勤怠表の提出",`${mkLabel(mk)} 分の勤怠表を提出します。提出後は管理者が確認します。${warn}<br>よろしいですか？`,"提出する",()=>{
-    const s=DB.submits();s[mk]={submittedAt:Date.now(),status:"submitted"};DB.saveSubmits(s);renderSubmission();
-    scrollToPanel('submitPanel');
-  });
+/* 提出ボタン → ポップアップ */
+function openSubmitDialog(){
+  const mk=monthKey(viewMonthDate);const st=(DB.submits()[mk]||{}).status||"none";
+  if(st==="submitted"){
+    openConfirm("勤怠表の提出",`${mkLabel(mk)} 分は提出済みです。提出を取り消しますか？`,"提出を取り消す",()=>{unsubmitMonth();},true);
+  } else if(st==="approved"||st==="paid"){
+    openInfo("勤怠表の提出",`${mkLabel(mk)} 分は${st==="approved"?"承認済み":"給与支給済み"}です。`);
+  } else {
+    const errs=checkMonth(mk).filter(e=>e.level==='error');
+    const warn=errs.length?`<br><b>注意：${errs.length}件のエラー（退勤漏れ・休憩不足など）があります。</b>`:"";
+    openConfirm("勤怠表の提出",`${mkLabel(mk)} 分を提出しますか？${warn}`,"提出する",()=>{
+      const s=DB.submits();s[mk]={submittedAt:Date.now(),status:"submitted"};DB.saveSubmits(s);renderAll();
+    });
+  }
 }
-function unsubmitMonth(){const mk=monthKey(viewMonthDate);const s=DB.submits();delete s[mk];DB.saveSubmits(s);renderSubmission();}
+function unsubmitMonth(){const mk=monthKey(viewMonthDate);const s=DB.submits();delete s[mk];DB.saveSubmits(s);renderAll();}
 
 /* ---- 休暇 ---- */
 function openLeave(){document.getElementById("lvDate").value=todayKey();document.getElementById("lvType").value="paid";document.getElementById("lvNote").value="";document.getElementById("lvErr").textContent="";document.getElementById("leaveModal").hidden=false;}
@@ -363,20 +387,23 @@ function saveEdit(){const key=editKey||(document.getElementById("emDate")&&docum
   const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
   const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
   recs[key]={in:inTs,out:outTs,breaks,note};DB.saveRecords(recs);closeEdit();renderAll();}
-function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,`この日の記録を削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAll();});}
+function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,`この日の記録を削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAll();},true);}
 
 /* ---- 確認モーダル ---- */
-function openConfirm(t,msg,ok,cb){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;document.getElementById("cmOk").textContent=ok;_cb=cb;document.getElementById("confirmModal").hidden=false;}
+function openConfirm(t,msg,ok,cb,danger){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;const okBtn=document.getElementById("cmOk");okBtn.textContent=ok;okBtn.className="mini solid"+(danger?" danger":"");document.getElementById("cmCancel").style.display="";_cb=cb;document.getElementById("confirmModal").hidden=false;}
+function openInfo(t,msg){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;const okBtn=document.getElementById("cmOk");okBtn.textContent="閉じる";okBtn.className="mini solid";document.getElementById("cmCancel").style.display="none";_cb=null;document.getElementById("confirmModal").hidden=false;}
 function closeConfirm(){document.getElementById("confirmModal").hidden=true;_cb=null;}
 
 /* ---- お知らせ / リマインド ---- */
 function renderNews(){
   const box=document.getElementById("newsBox");const list=newsSorted();
-  if(!list.length){box.innerHTML=`<div class="empty">お知らせはありません</div>`;}
-  else box.innerHTML=`<div class="newslist">`+list.map(n=>`<div class="newsitem ${n.pinned?'pinned':''}">
-    <div class="nh">${n.pinned?'<span class="pin">重要</span>':''}<span class="nt">${esc(n.title)}</span>
-    <span class="nd">${new Date(n.ts).toLocaleDateString('ja-JP')}</span></div>
-    ${n.body?`<div class="nb">${esc(n.body)}</div>`:''}</div>`).join("")+`</div>`;
+  if(!list.length){box.innerHTML=`<div class="empty" style="padding:10px">お知らせはありません</div>`;markRead(currentUser());return;}
+  box.innerHTML=`<div class="newslist">`+list.map(n=>{
+    const isNew=n.ts>_lastNewsRead;
+    return `<div class="newsitem ${n.pinned?'pinned':''}">
+      <div class="nh">${n.pinned?'<span class="pin">重要</span>':''}${isNew?'<span class="newbadge">NEW</span>':''}<span class="nt">${esc(n.title)}</span><span class="nd">${new Date(n.ts).toLocaleDateString('ja-JP')}</span></div>
+      ${n.body?`<div class="nb">${esc(n.body)}</div>`:''}</div>`;
+  }).join("")+`</div>`;
   markRead(currentUser());
 }
 function renderReminder(){
@@ -386,33 +413,29 @@ function renderReminder(){
   box.innerHTML=`<div class="reminder"><span class="ic">📢</span><div><div>${esc(r.msg)}</div>
     <div class="r-actions"><button class="mini solid warn" onclick="goSubmit('${r.mk}')">今すぐ提出する</button></div></div></div>`;
 }
-function goSubmit(mk){const [y,m]=mk.split("-").map(Number);viewMonthDate=new Date(y,m-1,1);renderAll();submitMonth();}
+function goSubmit(mk){const [y,m]=mk.split("-").map(Number);viewMonthDate=new Date(y,m-1,1);renderAll();openSubmitDialog();}
 
-/* ---- 入力漏れ通知 ---- */
+/* ---- 入力漏れ通知（画面ポップアップのみ） ---- */
 function maybeShowMissing(){
   if(_missShown)return;const miss=missingPunchDays(currentUser());
-  if(!miss.length)return;_missShown=true;window._missDays=miss;
+  if(!miss.length)return;_missShown=true;
   document.getElementById("missCount").textContent=miss.length;
   document.getElementById("missList").innerHTML=`<ul style="margin:8px 0 0 18px;line-height:1.9">`+miss.map(k=>{const d=parseKey(k);return `<li>${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）</li>`;}).join("")+`</ul>`;
   document.getElementById("missModal").hidden=false;
 }
-function missReport(){
-  const cfg=getCfg();const miss=window._missDays||[];
-  const body=`${userLabel(currentUser())} です。\n以下の日の勤怠入力が漏れています。ご確認をお願いします。\n\n`+miss.map(k=>{const d=parseKey(k);return `・${k}（${WD[d.getDay()]}）`;}).join("\n");
-  openMail(cfg.adminEmail,"【勤怠】入力漏れのご連絡",body);
-}
-function missGoInput(){document.getElementById("missModal").hidden=true;scrollToPanel("recPanel");}
+function missGoInput(){document.getElementById("missModal").hidden=true;showView('home');document.getElementById("recPanel").scrollIntoView({behavior:'smooth',block:'start'});}
 
 /* ---- render ---- */
-function renderAll(){renderReminder();renderNews();renderToday();renderMyRecords();renderPlanCalendar();renderContract();renderSubmission();}
+function renderAll(){renderReminder();renderNews();renderToday();renderMyRecords();renderContract();renderSubmission();if(!document.getElementById('viewCalendar').hidden)renderPlanCalendar();}
 
 window.afterSettings=function(){setCurrentUser(AUTH.cred().username);setHeaderName();renderAll();};
 window.onAuthReady=function(){
   const c=AUTH.cred();upsertUser(c.username,c.name,c.email);setCurrentUser(c.username);
+  _lastNewsRead=lastRead(c.username);
   showAuth("ready");
   document.getElementById("hdrName").hidden=false;
   document.getElementById("appUser").hidden=false;
-  setHeaderName();renderAll();
+  setHeaderName();showView('home');renderAll();
   if(!_started){_started=true;tick();setInterval(tick,1000);}
   maybeShowMissing();
 };
