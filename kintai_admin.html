@@ -28,16 +28,15 @@
   <div id="authWrap">
     <div class="gate" id="authSetup" hidden>
       <div class="lockic">🔐</div>
-      <h2>アカウント登録</h2>
-      <p>ログイン用のアカウントを登録します（この端末に保存されます）</p>
+      <h2>管理者アカウント登録（初回）</h2>
+      <p>最初の管理者アカウントを作成します。<b>管理者権限</b>が付与され、管理画面にログインできます。<br>2人目以降の管理者は、ログイン後に「アカウント管理」から追加してください。</p>
       <div class="field"><label>お名前（表示名）</label><input id="suName" placeholder="管理 花子"></div>
       <div class="field"><label>ユーザー名（ログインID）</label><input id="suUser" placeholder="admin"></div>
       <div class="field"><label>メールアドレス</label><input id="suEmail" type="email" placeholder="admin@example.com"></div>
       <div class="field"><label>パスワード（8文字以上）</label><input id="suPw" type="password"></div>
       <div class="field"><label>パスワード（確認）</label><input id="suPw2" type="password"></div>
       <div class="err-txt" id="suErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
-      <div class="actionrow"><button class="mini solid" onclick="doSetup()">登録して開始</button></div>
-      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoLogin()">ログイン画面へ戻る</button></div>
+      <div class="actionrow"><button class="mini solid" onclick="doSetup()">管理者として登録して開始</button></div>
     </div>
     <div class="gate" id="authLogin" hidden>
       <div class="lockic">🔒</div>
@@ -47,7 +46,7 @@
       <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
-      <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">＋ 新規登録（アカウント作成）</button></div>
+      <p class="note" style="max-width:340px;margin:12px auto 0;color:var(--muted);text-align:center">管理者アカウントの追加は、ログイン後に「アカウント管理」から行います。</p>
     </div>
   </div>
 
@@ -136,6 +135,16 @@
     </section>
 
     <section class="panel">
+      <div class="panel-head"><h2>👥 アカウント管理</h2>
+        <div class="tools"><button class="mini solid" onclick="openAdminAdd()">＋ 管理者を追加</button></div>
+      </div>
+      <div class="panel-body">
+        <div id="acctBox"></div>
+        <p class="note" style="color:var(--muted);margin-top:8px">「管理者」は管理画面にログインできます。「労働者」はユーザー画面にログインして打刻します。労働者の追加は上部の「＋労働者を追加」から行えます。</p>
+      </div>
+    </section>
+
+    <section class="panel">
       <div class="panel-head"><h2>⚙ 設定</h2></div>
       <div class="panel-body">
         <div class="fieldrow">
@@ -192,6 +201,20 @@
     <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
     <div class="err-txt" id="emErr"></div>
     <div class="modal-actions"><button class="mini" onclick="closeEdit()">キャンセル</button><button class="mini solid" onclick="saveEdit()">保存</button></div>
+  </div>
+</div>
+
+<!-- 管理者の追加モーダル -->
+<div class="overlay" id="adminAddModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>管理者を追加</h3>
+    <div class="field"><label>お名前（表示名）</label><input id="aaName" placeholder="管理 次郎"></div>
+    <div class="field"><label>ユーザー名（ログインID）</label><input id="aaUser" placeholder="admin2"></div>
+    <div class="field"><label>メールアドレス（任意）</label><input id="aaEmail" type="email"></div>
+    <div class="field"><label>パスワード（8文字以上）</label><input id="aaPw" type="password"></div>
+    <div class="err-txt" id="aaErr"></div>
+    <p class="note">※このアカウントには<b>管理者権限</b>が付与され、管理画面にログインできます。</p>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('adminAddModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveAdminAccount()">追加</button></div>
   </div>
 </div>
 
@@ -322,6 +345,33 @@ async function saveWorker(){
   if(pw){ await upsertWorkerAccount(user,name,email,pw); }
   adminUser=user; saveSel(user); setCurrentUser(user);
   document.getElementById("workerModal").hidden=true; renderAdmin();
+}
+/* ---- アカウント管理（管理者/労働者） ---- */
+function renderAccounts(){
+  const accts=getAccounts();const me=(AUTH.cred()&&AUTH.cred().username);const box=document.getElementById("acctBox");
+  const keys=Object.keys(accts).sort((a,b)=>(accts[b].role==="admin")-(accts[a].role==="admin"));
+  if(!keys.length){box.innerHTML=`<div class="empty">アカウントがありません</div>`;return;}
+  box.innerHTML=keys.map(u=>{const a=accts[u];const roleLabel=a.role==="admin"?"管理者":"労働者";
+    const del=(u===me)?`<span class="note" style="color:var(--muted)">ログイン中</span>`:`<button class="iconbtn del" onclick="deleteAccount('${u}')">削除</button>`;
+    return `<div class="subrow"><div><span class="m">${esc(a.name||u)}</span> <span class="d2">${esc(u)}</span></div><div style="display:flex;gap:10px;align-items:center"><span class="badge ${a.role==='admin'?'submitted':'approved'}">${roleLabel}</span>${del}</div></div>`;}).join("");
+}
+function openAdminAdd(){ ["aaName","aaUser","aaEmail","aaPw"].forEach(id=>document.getElementById(id).value=""); document.getElementById("aaErr").textContent=""; document.getElementById("adminAddModal").hidden=false; }
+async function saveAdminAccount(){
+  const name=document.getElementById("aaName").value.trim(),user=document.getElementById("aaUser").value.trim(),email=document.getElementById("aaEmail").value.trim();
+  const pw=document.getElementById("aaPw").value; const err=document.getElementById("aaErr");
+  if(!name){err.textContent="お名前を入力してください";return;}
+  if(!/^[A-Za-z0-9_.-]{3,}$/.test(user)){err.textContent="ユーザー名は英数字3文字以上です";return;}
+  if(getAccount(user)){err.textContent="そのユーザー名は既に使われています";return;}
+  if(pw.length<8){err.textContent="パスワードは8文字以上にしてください";return;}
+  const accts=getAccounts(); accts[user]={name,email,hash:await hashPw(pw),role:"admin"}; saveAccounts(accts);
+  document.getElementById("adminAddModal").hidden=true; renderAccounts(); alert("管理者アカウントを追加しました");
+}
+function deleteAccount(u){
+  const me=(AUTH.cred()&&AUTH.cred().username);
+  if(u===me){alert("ログイン中のアカウントは削除できません");return;}
+  openConfirm("アカウントの削除",`アカウント「${esc(u)}」のログインを削除します。<br><b>この操作は元に戻せません。</b>（勤怠データは残ります）`,"削除する",()=>{
+    const a=getAccounts();delete a[u];saveAccounts(a);renderAccounts();
+  });
 }
 function confirmDeleteWorker(){
   if(!adminUser){alert("労働者が選択されていません");return;}
@@ -532,7 +582,7 @@ function saveContractForm(){const g=id=>document.getElementById(id).value.trim()
 function renderAdmin(){
   setCurrentUser(adminUser);
   document.getElementById("mLabel").textContent=`${adminMonthDate.getFullYear()}年${adminMonthDate.getMonth()+1}月`;
-  renderWorkerBar();renderNotifications();
+  renderWorkerBar();renderNotifications();renderAccounts();
   if(!adminUser){ ["sumGrid","contractBox","errBox","calBox","adminRecords","subBox","planSubBox","trAdminBox"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<div class="empty">「＋ 労働者を追加」から登録してください</div>`;}); renderNewsAdmin();renderCfg();return; }
   renderSummary();renderContract();renderErrors();renderCalendar();renderRecords();renderSubmissions();renderPlanSubs();renderTransportAdmin();renderNewsAdmin();renderCfg();
 }
