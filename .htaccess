@@ -1,0 +1,8 @@
+# ===== HTTP Basic 認証（Apache系サーバー用） =====
+# このファイルと .htpasswd を公開ディレクトリに置くと、サイト全体に
+# ブラウザ標準の Basic 認証（ユーザー名・パスワード）がかかります。
+# ※ JavaScript のログイン画面と違い、これはサーバー側の本物の認証です。
+AuthType Basic
+AuthName "勤怠管理システム（関係者以外立入禁止）"
+AuthUserFile /full/path/to/.htpasswd
+Require valid-user

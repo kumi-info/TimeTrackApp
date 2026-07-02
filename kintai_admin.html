@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1ab5ba">
+<title>勤怠管理 - 管理者</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%20width%3D%2264%22%20height%3D%2264%22%3E%20%20%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2215%22%20fill%3D%22%231ab5ba%22/%3E%20%20%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2215%22%20fill%3D%22url%28%23g%29%22/%3E%20%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%20%20%20%20%3Cstop%20offset%3D%220%22%20stop-color%3D%22%231ab5ba%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230f8b8f%22/%3E%3C/linearGradient%3E%3C/defs%3E%20%20%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22/%3E%20%20%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23fbdb58%22%20stroke-width%3D%224%22%20stroke-dasharray%3D%2210%20120%22%20stroke-linecap%3D%22round%22%20transform%3D%22rotate%28-90%2032%2032%29%22/%3E%20%20%3Cline%20x1%3D%2232%22%20y1%3D%2232%22%20x2%3D%2232%22%20y2%3D%2219%22%20stroke%3D%22%23fbdb58%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22/%3E%20%20%3Cline%20x1%3D%2232%22%20y1%3D%2232%22%20x2%3D%2242%22%20y2%3D%2237%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22/%3E%20%20%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%223.2%22%20fill%3D%22%23fbdb58%22/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="stylesheet" href="kintai.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">刻</div>
+    <div><h1>勤怠管理</h1><div class="sub">ADMIN CONSOLE</div></div>
+    <div class="headername" id="hdrName" hidden>
+      <button class="mini notifbell" onclick="scrollToPanel('notifPanel')">🔔<span class="notifcount" id="notifCount" hidden>0</span></button>
+      <div class="who" id="who"></div>
+      <span class="rolebadge admin">管理者</span>
+      <button class="mini" onclick="openSettings()">設定</button>
+      <button class="mini" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <div id="authWrap">
+    <div class="gate" id="authSetup" hidden>
+      <div class="lockic">🔐</div>
+      <h2>初期設定</h2>
+      <p>ログイン用のアカウントを登録します（この端末に保存されます）</p>
+      <div class="field"><label>お名前（表示名）</label><input id="suName" placeholder="管理 花子"></div>
+      <div class="field"><label>ユーザー名（ログインID）</label><input id="suUser" placeholder="admin"></div>
+      <div class="field"><label>メールアドレス</label><input id="suEmail" type="email" placeholder="admin@example.com"></div>
+      <div class="field"><label>パスワード（8文字以上）</label><input id="suPw" type="password"></div>
+      <div class="field"><label>パスワード（確認）</label><input id="suPw2" type="password"></div>
+      <div class="err-txt" id="suErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
+      <div class="actionrow"><button class="mini solid" onclick="doSetup()">登録して開始</button></div>
+    </div>
+    <div class="gate" id="authLogin" hidden>
+      <div class="lockic">🔒</div>
+      <h2>ログイン</h2>
+      <p>ユーザー名とパスワードを入力してください</p>
+      <div class="field"><label>ユーザー名</label><input id="liUser"></div>
+      <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <label class="remember"><input type="checkbox" id="liRemember" checked>ログイン状態を保持する</label>
+      <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
+      <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
+    </div>
+  </div>
+
+  <div id="adminContent" hidden>
+    <!-- 労働者の選択 -->
+    <div class="workerbar">
+      <label>労働者</label>
+      <select id="workerSel" onchange="onWorkerChange()"></select>
+      <span class="who-mail" id="workerMail"></span>
+      <div class="tools" style="margin-left:auto;display:flex;gap:8px">
+        <button class="mini" onclick="openWorker()">＋ 労働者を追加</button>
+        <button class="mini danger" onclick="confirmDeleteWorker()">選択中を削除</button>
+      </div>
+    </div>
+
+    <!-- 通知センター -->
+    <section class="panel" id="notifPanel">
+      <div class="panel-head"><h2>🔔 通知</h2></div>
+      <div class="panel-body"><div id="notifBox"></div></div>
+    </section>
+
+    <div class="panel-head" style="border:0;padding:0 2px 4px;margin-top:16px">
+      <h2 style="font-size:1.05rem">📊 月次サマリー・管理</h2>
+      <div class="monthnav"><button class="nav" onclick="shiftM(-1)">‹</button><b id="mLabel">—</b><button class="nav" onclick="shiftM(1)">›</button></div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head"><h2>集計</h2>
+        <div class="tools"><button class="mini" onclick="printTimesheet(adminMonth())">勤怠表PDF</button><button class="mini" onclick="downloadCSV(adminMonth())">CSV出力</button></div>
+      </div>
+      <div class="panel-body"><div class="sumgrid" id="sumGrid"></div>
+        <p class="note" style="margin-top:12px;color:var(--muted);font-size:.74rem">時間外＝1日8時間超の実働。深夜＝22:00〜翌5:00の実働。休日勤務＝稼働日でない日/日曜の勤務（目安）。割増賃金の計算は社労士にご確認ください。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>📄 雇用契約</h2>
+        <div class="tools"><button class="mini" onclick="openContract()">編集</button><button class="mini" onclick="printContract()">PDF出力</button></div>
+      </div>
+      <div class="panel-body" id="contractBox"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>⚠ エラーチェック</h2></div>
+      <div class="panel-body"><div id="errBox"></div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>🗓 稼働日カレンダー（入力）</h2>
+        <div class="tools"><button class="mini" onclick="applyPlanMonth()">出勤予定を反映</button><button class="mini" onclick="fillWeekdays()">平日を稼働日に</button><button class="mini danger" onclick="clearSchedule()">この月をクリア</button></div>
+      </div>
+      <div class="panel-body">
+        <div class="cal" id="calBox"></div>
+        <div class="callegend"><span><i class="lg plan"></i>稼働予定日</span><span><i class="lg rec"></i>打刻あり</span><span><i class="lg lv"></i>休暇</span></div>
+        <p class="note" style="margin-top:10px;color:var(--muted);font-size:.74rem">日付をタップで稼働予定日をON/OFF。「出勤予定を反映」で労働者が提出した予定を取り込めます。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>勤怠記録</h2>
+        <div class="tools"><button class="mini" onclick="openEdit(null)">＋ 記録を追加</button><button class="mini danger" onclick="confirmClearAll()">全消去</button></div>
+      </div>
+      <div id="adminRecords"></div>
+    </section>
+
+    <section class="panel" id="subPanel">
+      <div class="panel-head"><h2>📥 勤怠表の提出状況</h2></div>
+      <div class="panel-body"><div id="subBox"></div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>🗓 出勤予定の申請</h2></div>
+      <div class="panel-body"><div id="planSubBox"></div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>📢 お知らせ配信</h2>
+        <div class="tools"><button class="mini solid" onclick="openNews()">＋ 新規お知らせ</button></div>
+      </div>
+      <div class="panel-body" id="newsAdminBox"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>⚙ 設定</h2></div>
+      <div class="panel-body">
+        <div class="fieldrow">
+          <div class="field"><label>勤怠表の提出日（毎月）</label><input id="cfgSubmitDay" type="number" min="1" max="31" inputmode="numeric"></div>
+          <div class="field"><label>給与支給日（毎月）</label><input id="cfgPayDay" type="number" min="1" max="31" inputmode="numeric"></div>
+        </div>
+        <div class="field"><label>管理者メール（入力漏れ報告の宛先）</label><input id="cfgAdminEmail" type="email" placeholder="admin@example.com"></div>
+        <div class="field"><label>会社名（任意）</label><input id="cfgCompany"></div>
+        <div style="text-align:right"><button class="mini solid" onclick="saveCfgForm()">設定を保存</button></div>
+        <p class="note" style="color:var(--muted);margin-top:8px">提出日を過ぎると労働者画面に提出リマインドが表示されます。メール送信は端末のメーラーを開く方式です（サーバー不要）。</p>
+      </div>
+    </section>
+
+    <div class="note-law">
+      <b>法令対応メモ</b><br>
+      打刻時刻を客観的記録として保存し、実働／時間外（8h超）／深夜（22:00〜5:00）を自動集計します。休憩不足（実働6h超45分・8h超60分）・退勤打刻漏れ・長時間労働・月45時間超の時間外はエラーチェックに表示されます。<br>
+      勤怠記録は労働基準法109条により原則5年（当分の間3年）の保存義務があります。「全消去」の前にCSV/PDFでバックアップを取ってください。割増賃金の計算・36協定・就業規則の適用は社会保険労務士にご確認ください（本ツールは記録・集計の補助であり法的助言ではありません）。
+    </div>
+    <div class="crosslink" style="margin-top:14px">打刻はこちら → <a href="kintai_user.html">ユーザー画面を開く</a></div>
+  </div>
+
+  <footer>データはこのブラウザ内に保存されます</footer>
+</div>
+
+<!-- 確認モーダル -->
+<div class="overlay" id="confirmModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true"><h3 id="cmTitle">確認</h3><p id="cmMsg"></p>
+    <div class="modal-actions"><button class="mini" onclick="closeConfirm()">キャンセル</button><button class="mini solid danger" id="cmOk">実行する</button></div></div>
+</div>
+
+<!-- 差し戻しモーダル -->
+<div class="overlay" id="rejectModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>勤怠表を差し戻す</h3>
+    <p class="plain" id="rjTarget" style="margin-bottom:12px"></p>
+    <div class="field"><label>差し戻しコメント（任意）</label><input type="text" id="rjComment" placeholder="例）休憩時間の記録を確認してください"></div>
+    <div class="modal-actions"><button class="mini" onclick="closeReject()">キャンセル</button><button class="mini solid danger" onclick="doReject()">差し戻す</button></div>
+  </div>
+</div>
+
+<!-- 記録の編集モーダル -->
+<div class="overlay" id="editModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="emTitle">記録を編集</h3>
+    <div class="field" id="emDateWrap"></div>
+    <div class="field"><label>区分</label><select id="emKind" onchange="onKindChange()">
+      <option value="work">勤務</option><option value="paid">有給休暇</option><option value="am">午前半休</option>
+      <option value="pm">午後半休</option><option value="special">特別休暇</option><option value="absence">欠勤</option></select></div>
+    <div id="emWorkFields">
+      <div class="fieldrow"><div class="field"><label>出勤</label><input type="time" id="emIn"></div><div class="field"><label>退勤</label><input type="time" id="emOut"></div></div>
+      <div class="field"><label>休憩</label><div id="emBreaks"></div><button type="button" class="addbrk" onclick="addBreakRow()">＋ 休憩を追加</button></div>
+    </div>
+    <div class="field"><label>備考（任意）</label><input type="text" id="emNote"></div>
+    <div class="err-txt" id="emErr"></div>
+    <div class="modal-actions"><button class="mini" onclick="closeEdit()">キャンセル</button><button class="mini solid" onclick="saveEdit()">保存</button></div>
+  </div>
+</div>
+
+<!-- 労働者の追加モーダル -->
+<div class="overlay" id="workerModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>労働者を追加</h3>
+    <div class="field"><label>お名前（表示名）</label><input id="wkName" placeholder="佐藤 次郎"></div>
+    <div class="field"><label>ユーザー名（ログインID）</label><input id="wkUser" placeholder="jiro"></div>
+    <div class="field"><label>メールアドレス（任意）</label><input id="wkEmail" type="email"></div>
+    <div class="err-txt" id="wkErr"></div>
+    <p class="note">※労働者はユーザー画面でこのユーザー名を使ってログイン・打刻します。</p>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('workerModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveWorker()">追加</button></div>
+  </div>
+</div>
+
+<!-- お知らせ作成モーダル -->
+<div class="overlay" id="newsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>お知らせを作成</h3>
+    <div class="field"><label>タイトル</label><input id="nwTitle" placeholder="例）今月の勤怠表提出について"></div>
+    <div class="field"><label>本文</label><textarea id="nwBody" placeholder="内容を入力"></textarea></div>
+    <label class="remember" style="max-width:none;margin:0 0 8px"><input type="checkbox" id="nwPin">「重要」として上部に固定する</label>
+    <div class="err-txt" id="nwErr"></div>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('newsModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveNewsForm()">配信する</button></div>
+  </div>
+</div>
+
+<!-- 雇用契約の編集モーダル -->
+<div class="overlay" id="contractModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>雇用契約の編集</h3>
+    <div class="field"><label>事業者名</label><input id="ctEmployer"></div>
+    <div class="field"><label>労働者名</label><input id="ctEmployee"></div>
+    <div class="field"><label>雇用形態</label><select id="ctType">
+      <option value="">（未選択）</option><option>正社員</option><option>契約社員</option><option>パート</option><option>アルバイト</option><option>業務委託</option></select></div>
+    <div class="field"><label>契約期間</label><input id="ctTerm" placeholder="例）2026/4/1〜（期間の定めなし）"></div>
+    <div class="field"><label>就業場所</label><input id="ctLocation"></div>
+    <div class="field"><label>業務内容</label><input id="ctJob"></div>
+    <div class="field"><label>所定労働時間</label><input id="ctWorkHours" placeholder="例）10:00〜19:00"></div>
+    <div class="field"><label>休憩</label><input id="ctBreak" placeholder="例）60分"></div>
+    <div class="field"><label>所定休日</label><input id="ctHolidays" placeholder="例）土日祝"></div>
+    <div class="fieldrow">
+      <div class="field"><label>賃金形態</label><select id="ctWageType"><option value="">（未選択）</option><option value="hourly">時給</option><option value="daily">日給</option><option value="monthly">月給</option></select></div>
+      <div class="field"><label>金額（円）</label><input id="ctWageAmount" inputmode="numeric"></div>
+    </div>
+    <div class="fieldrow"><div class="field"><label>締め日</label><input id="ctClosing" placeholder="例）月末"></div><div class="field"><label>支払日</label><input id="ctPayday" placeholder="例）翌月25日"></div></div>
+    <div class="field"><label>加入保険</label><input id="ctInsurance" placeholder="例）雇用・労災・健康・厚生年金"></div>
+    <div class="field"><label>備考</label><input id="ctNote"></div>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('contractModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveContractForm()">保存</button></div>
+  </div>
+</div>
+
+<!-- アカウント設定 -->
+<div class="overlay" id="settingsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>アカウント設定</h3>
+    <div class="field"><label>お名前（表示名）</label><input id="setName"></div>
+    <div class="field"><label>ユーザー名</label><input id="setUser"></div>
+    <div class="field"><label>メールアドレス</label><input id="setEmail" type="email"></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <p style="font-size:.78rem;color:var(--muted);margin:0 0 10px;font-weight:700">パスワードを変更する場合のみ入力</p>
+    <div class="field"><label>現在のパスワード</label><input id="setCur" type="password"></div>
+    <div class="field"><label>新しいパスワード（8文字以上）</label><input id="setNew" type="password"></div>
+    <div class="err-txt" id="setErr"></div>
+    <div class="modal-actions"><button class="mini" onclick="document.getElementById('settingsModal').hidden=true">閉じる</button>
+      <button class="mini solid" onclick="saveSettings()">保存</button></div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script src="kintai_core.js"></script>
+<script>
+/* ===== ADMIN 画面ロジック ===== */
+Object.assign(window, Kintai);
+
+let adminMonthDate=new Date();
+let editKey=null;
+let _cb=null;
+let rejectKey=null;
+let adminUser=null;
+const ADMIN_SEL="kintai_v4_adminsel";
+function loadSel(){ try{return localStorage.getItem(ADMIN_SEL);}catch(e){return null;} }
+function saveSel(u){ try{localStorage.setItem(ADMIN_SEL,u||"");}catch(e){} }
+
+function scrollToPanel(id){ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+function adminMonth(){ return monthKey(adminMonthDate); }
+function shiftM(n){ adminMonthDate.setMonth(adminMonthDate.getMonth()+n); renderAdmin(); }
+
+/* ---- 労働者の選択 ---- */
+function ensureAdminUser(){
+  if(!Object.keys(getUsers()).length){ const c=AUTH.cred(); if(c) upsertUser(c.username,c.name,c.email); }
+  const list=Object.keys(getUsers());
+  adminUser=loadSel();
+  if(!adminUser || !getUsers()[adminUser]) adminUser=list[0]||null;
+  saveSel(adminUser);
+  setCurrentUser(adminUser);
+}
+function renderWorkerBar(){
+  const users=getUsers();const keys=Object.keys(users);
+  document.getElementById("workerSel").innerHTML=keys.map(u=>`<option value="${u}" ${u===adminUser?'selected':''}>${esc(userLabel(u))}（${u}）</option>`).join("");
+  document.getElementById("workerMail").textContent=adminUser?(userEmail(adminUser)||"メール未登録"):"労働者が未登録です";
+}
+function onWorkerChange(){ adminUser=document.getElementById("workerSel").value; saveSel(adminUser); setCurrentUser(adminUser); renderAdmin(); }
+function openWorker(){ ["wkName","wkUser","wkEmail"].forEach(id=>document.getElementById(id).value=""); document.getElementById("wkErr").textContent=""; document.getElementById("workerModal").hidden=false; }
+function saveWorker(){
+  const name=document.getElementById("wkName").value.trim(),user=document.getElementById("wkUser").value.trim(),email=document.getElementById("wkEmail").value.trim();
+  const err=document.getElementById("wkErr");
+  if(!name){err.textContent="お名前を入力してください";return;}
+  if(!/^[A-Za-z0-9_.-]{2,}$/.test(user)){err.textContent="ユーザー名は英数字2文字以上です";return;}
+  if(getUsers()[user]){err.textContent="そのユーザー名は既に存在します";return;}
+  upsertUser(user,name,email); adminUser=user; saveSel(user); setCurrentUser(user);
+  document.getElementById("workerModal").hidden=true; renderAdmin();
+}
+function confirmDeleteWorker(){
+  if(!adminUser){alert("労働者が選択されていません");return;}
+  openConfirm(`労働者「${userLabel(adminUser)}」の削除`,`この労働者の勤怠データ・提出・契約情報をすべて削除します。<br><b>この操作は元に戻せません。</b>`,"削除する",()=>{ removeUser(adminUser); saveSel(""); ensureAdminUser(); renderAdmin(); });
+}
+
+/* ---- 通知センター ---- */
+function renderNotifications(){
+  const list=adminNotifications();const box=document.getElementById("notifBox");const bell=document.getElementById("notifCount");
+  if(bell){ bell.textContent=list.length; bell.hidden=list.length===0; }
+  if(!list.length){ box.innerHTML=`<div class="okmsg"><span>✓</span>新しい通知はありません</div>`; return; }
+  box.innerHTML=`<div class="notiflist">`+list.map(n=>{
+    const act = n.type==="submit"
+      ? `<button class="mini solid" onclick="viewWorker('${n.user}')">確認する</button>`
+      : `<button class="mini solid warn" onclick="markPaid('${n.user}','${n.mk}')">給与支給済</button><button class="mini" onclick="notifyPay('${n.user}','${n.mk}')">通知メール</button>`;
+    return `<div class="notifitem ${n.type}"><span class="ic">${n.type==='submit'?'📥':'💰'}</span><div>${esc(n.msg)}</div><div class="n-actions">${act}</div></div>`;
+  }).join("")+`</div>`;
+}
+function viewWorker(u){ adminUser=u; saveSel(u); setCurrentUser(u); renderAdmin(); scrollToPanel('subPanel'); }
+function setSubmitStatus(u,mk,patch){ const d=getData(u); d.submits=d.submits||{}; if(d.submits[mk]){ Object.assign(d.submits[mk],patch); setData(u,d); } }
+function markPaid(u,mk){ setSubmitStatus(u,mk,{status:"paid",paidAt:Date.now()}); renderAdmin(); }
+function notifyPay(u,mk){ openMail(userEmail(u),"【給与】支給のお知らせ",`${userLabel(u)} さん\n\n${mkLabel(mk)} 分の給与を支給します。ご確認ください。`); }
+
+/* ---- サマリー・エラー・契約 ---- */
+function renderSummary(){
+  const a=aggregate(adminMonth());
+  const cards=[["出勤日数",a.workDays,"日",""],["休暇日数",a.leaveDays,"日",""],["総実働",fmtH(a.workMin),"h","acc"],["時間外",fmtH(a.otMin),"h","ot"],
+    ["深夜",fmtH(a.niMin),"h","ni"],["休日勤務",a.holidayDays,"日",""],["休憩合計",fmtH(a.brMin),"h",""],["内訳",`有${a.leave.paid}/欠${a.leave.absence}`,"",""]];
+  document.getElementById("sumGrid").innerHTML=cards.map(([l,v,u,c])=>`<div class="sumcard ${c}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div></div>`).join("");
+}
+function renderErrors(){
+  const issues=checkMonth(adminMonth());const box=document.getElementById("errBox");
+  if(issues.length===0){box.innerHTML=`<div class="okmsg"><span>✓</span>この月に検出された問題はありません</div>`;return;}
+  issues.sort((a,b)=>(a.level===b.level?0:a.level==="error"?-1:1));
+  box.innerHTML=`<div class="errlist">`+issues.map(i=>{const dl=i.date.length>7?`<span class="dt">${parseKey(i.date).getMonth()+1}/${parseKey(i.date).getDate()}</span>`:`<span class="dt">月次</span>`;
+    return `<div class="erritem ${i.level}"><span class="ic">${i.level==='error'?'✕':'!'}</span>${dl}<span>${esc(i.msg)}</span></div>`;}).join("")+`</div>`;
+}
+function renderContract(){document.getElementById("contractBox").innerHTML=contractView(true);}
+
+/* ---- 稼働日カレンダー ---- */
+function renderCalendar(){
+  const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const recs=DB.records(),sch=DB.schedule();
+  const first=new Date(y,m-1,1).getDay(),dim=daysInMonth(y,m);let html='<div class="cal-grid">';
+  ["日","月","火","水","木","金","土"].forEach((w,i)=>html+=`<div class="cal-dow ${i===0?'sun':i===6?'sat':''}">${w}</div>`);
+  for(let i=0;i<first;i++)html+='<div class="cal-cell empty"></div>';
+  for(let d=1;d<=dim;d++){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];const cls=["cal-cell"];
+    if(sch[k])cls.push("planned");if(r&&r.in)cls.push("has-rec");if(r&&r.leave)cls.push("has-leave");if(k===todayKey())cls.push("today");
+    html+=`<div class="${cls.join(' ')}" onclick="toggleDay('${k}')">${d}<span class="dotm"></span></div>`;}
+  html+='</div>';document.getElementById("calBox").innerHTML=html;
+}
+function toggleDay(k){const s=DB.schedule();if(s[k])delete s[k];else s[k]=true;DB.saveSchedule(s);renderAdmin();}
+function fillWeekdays(){const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const s=DB.schedule();for(let d=1;d<=daysInMonth(y,m);d++){const k=`${y}-${pad(m)}-${pad(d)}`;const dow=parseKey(k).getDay();if(dow>=1&&dow<=5)s[k]=true;}DB.saveSchedule(s);renderAdmin();}
+function clearSchedule(){const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const s=DB.schedule();for(let d=1;d<=daysInMonth(y,m);d++)delete s[`${y}-${pad(m)}-${pad(d)}`];DB.saveSchedule(s);renderAdmin();}
+function applyPlan(mk){const plan=DB.plan();const sch=DB.schedule();const [y,m]=mk.split("-").map(Number);for(let d=1;d<=daysInMonth(y,m);d++){const k=`${y}-${pad(m)}-${pad(d)}`;if(plan[k])sch[k]=true;}DB.saveSchedule(sch);renderAdmin();}
+function applyPlanMonth(){applyPlan(adminMonth());}
+
+/* ---- 勤怠記録 ---- */
+function renderRecords(){
+  const y=adminMonthDate.getFullYear(),m=adminMonthDate.getMonth()+1;const recs=DB.records(),sch=DB.schedule();const rows=[];
+  for(let d=daysInMonth(y,m);d>=1;d--){const k=`${y}-${pad(m)}-${pad(d)}`;const r=recs[k];if(!r)continue;
+    const dt=parseKey(k);const dl=`<span class="d1">${m}/${d}</span><span class="d2">${WD[dt.getDay()]}</span>`;let kindTag,inT,outT,brT,wT,otT;
+    if(r.leave){kindTag=`<span class="tag ${r.leave.type==='absence'?'absence':'leave'}">${LEAVE_TYPES[r.leave.type]}</span>`;inT=outT=brT=wT=otT="—";}
+    else{kindTag=`<span class="tag work">勤務</span>`;inT=hm(r.in);outT=r.out?hm(r.out):"—";const bm=Math.round(breakMs(r,r.out??Date.now())/60000);brT=bm>0?bm+"分":"—";wT=r.out?fmtDur(workedMs(r)):(state(r)==="off"?"—":"勤務中");otT=r.out?fmtDur(overtimeMin(r)*60000):"—";}
+    const errs=checkDay(k,r,!!sch[k]);
+    rows.push(`<tr class="${k===todayKey()?'is-today':''} ${errs.some(e=>e.level==='error')?'is-err':''}"><td class="datecell" data-l="日付">${dl}</td><td data-l="区分">${kindTag}</td><td data-l="出勤">${inT}</td><td data-l="退勤">${outT}</td><td data-l="休憩">${brT}</td><td class="work" data-l="実働">${wT}</td><td data-l="時間外">${otT}</td><td class="actcell" data-l="操作"><div class="rowact"><button class="iconbtn" onclick="openEdit('${k}')">編集</button><button class="iconbtn del" onclick="confirmDelete('${k}')">削除</button></div></td></tr>`);}
+  const box=document.getElementById("adminRecords");
+  box.innerHTML=rows.length?`<table><thead><tr><th>日付</th><th>区分</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>時間外</th><th>操作</th></tr></thead><tbody>${rows.join("")}</tbody></table>`:`<div class="empty"><b>この月の記録はありません</b>「＋ 記録を追加」または打刻で記録されます</div>`;
+}
+
+/* ---- 提出状況（勤怠表） ---- */
+function renderSubmissions(){
+  const subs=DB.submits();const keys=Object.keys(subs).sort().reverse();const box=document.getElementById("subBox");
+  const rows=keys.map(mk=>{const s=subs[mk];const label={submitted:"提出済（確認待ち）",approved:"承認済",rejected:"差し戻し",paid:"給与支給済"}[s.status]||s.status;
+    let act="";
+    if(s.status==="submitted")act=`<button class="mini solid" onclick="approve('${mk}')">承認</button><button class="mini danger" onclick="reject('${mk}')">差し戻し</button>`;
+    else if(s.status==="approved")act=`<button class="mini solid warn" onclick="markPaidCur('${mk}')">給与支給済</button><button class="mini danger" onclick="reject('${mk}')">差し戻し</button>`;
+    else if(s.status==="rejected")act=`<button class="mini solid" onclick="approve('${mk}')">承認</button>`;
+    else act=`<span class="note" style="color:var(--muted)">完了</span>`;
+    return `<div class="subrow"><div><span class="m">${mkLabel(mk)}分</span><div class="note" style="color:var(--muted);font-size:.72rem">提出：${new Date(s.submittedAt).toLocaleString('ja-JP')}${s.comment?` / ${esc(s.comment)}`:""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge ${s.status}">${label}</span>${act}</div></div>`;});
+  box.innerHTML=rows.length?rows.join(""):`<div class="empty"><b>提出はまだありません</b>労働者が勤怠表を提出するとここに表示されます</div>`;
+}
+function approve(mk){const s=DB.submits();if(s[mk]){s[mk].status="approved";s[mk].reviewedAt=Date.now();s[mk].comment="";DB.saveSubmits(s);}renderAdmin();}
+function markPaidCur(mk){const s=DB.submits();if(s[mk]){s[mk].status="paid";s[mk].paidAt=Date.now();DB.saveSubmits(s);}renderAdmin();}
+function reject(mk){ rejectKey=mk; document.getElementById("rjTarget").textContent=`${userLabel(adminUser)} さんの ${mkLabel(mk)} 分を差し戻します。労働者は再提出できます。`; document.getElementById("rjComment").value=""; document.getElementById("rejectModal").hidden=false; }
+function closeReject(){ document.getElementById("rejectModal").hidden=true; rejectKey=null; }
+function doReject(){ const mk=rejectKey; if(!mk){closeReject();return;} const c=document.getElementById("rjComment").value.trim(); const s=DB.submits(); if(s[mk]){s[mk].status="rejected";s[mk].reviewedAt=Date.now();s[mk].comment=c;DB.saveSubmits(s);} closeReject(); renderAdmin(); }
+
+/* ---- 出勤予定の申請 ---- */
+function renderPlanSubs(){
+  const ps=DB.plansub();const keys=Object.keys(ps).sort().reverse();const box=document.getElementById("planSubBox");
+  const rows=keys.map(mk=>{const s=ps[mk];const label={submitted:"提出済（確認待ち）",approved:"確定",rejected:"差し戻し"}[s.status]||s.status;
+    let act="";
+    if(s.status==="submitted")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">確定＆稼働日に反映</button><button class="mini danger" onclick="rejectPlanSub('${mk}')">差し戻し</button>`;
+    else if(s.status==="approved")act=`<button class="mini" onclick="applyPlan('${mk}')">稼働日に再反映</button>`;
+    else if(s.status==="rejected")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">確定</button>`;
+    return `<div class="subrow"><div><span class="m">${mkLabel(mk)} 出勤予定</span><div class="note" style="color:var(--muted);font-size:.72rem">提出：${new Date(s.submittedAt).toLocaleString('ja-JP')}${s.comment?` / ${esc(s.comment)}`:""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge ${s.status}">${label}</span>${act}</div></div>`;});
+  box.innerHTML=rows.length?rows.join(""):`<div class="empty">出勤予定の提出はまだありません</div>`;
+}
+function approvePlanSub(mk){const s=DB.plansub();if(s[mk]){s[mk].status="approved";s[mk].reviewedAt=Date.now();s[mk].comment="";DB.savePlansub(s);}applyPlan(mk);}
+function rejectPlanSub(mk){openConfirm("出勤予定の差し戻し",`${mkLabel(mk)} の出勤予定を差し戻します。`,"差し戻す",()=>{const s=DB.plansub();if(s[mk]){s[mk].status="rejected";s[mk].reviewedAt=Date.now();DB.savePlansub(s);}renderAdmin();});}
+
+/* ---- お知らせ配信 ---- */
+function renderNewsAdmin(){
+  const box=document.getElementById("newsAdminBox");const list=newsSorted();
+  box.innerHTML=list.length?`<div class="newslist">`+list.map(n=>`<div class="newsitem ${n.pinned?'pinned':''}">
+    <div class="nh">${n.pinned?'<span class="pin">重要</span>':''}<span class="nt">${esc(n.title)}</span><span class="nd">${new Date(n.ts).toLocaleDateString('ja-JP')}</span></div>
+    ${n.body?`<div class="nb">${esc(n.body)}</div>`:''}
+    <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end"><button class="iconbtn del" onclick="delNews('${n.id}')">削除</button></div>
+  </div>`).join("")+`</div>`:`<div class="empty">お知らせはありません。「＋新規お知らせ」から配信できます。</div>`;
+}
+function openNews(){ document.getElementById("nwTitle").value="";document.getElementById("nwBody").value="";document.getElementById("nwPin").checked=false;document.getElementById("nwErr").textContent="";document.getElementById("newsModal").hidden=false; }
+function saveNewsForm(){ const t=document.getElementById("nwTitle").value.trim();if(!t){document.getElementById("nwErr").textContent="タイトルを入力してください";return;} addNews(t,document.getElementById("nwBody").value.trim(),document.getElementById("nwPin").checked); document.getElementById("newsModal").hidden=true; renderNewsAdmin(); }
+function delNews(id){ openConfirm("お知らせの削除","このお知らせを削除します。","削除する",()=>{deleteNews(id);renderNewsAdmin();}); }
+
+/* ---- 設定 ---- */
+function renderCfg(){ const c=getCfg();document.getElementById("cfgSubmitDay").value=c.submitDay;document.getElementById("cfgPayDay").value=c.payDay;document.getElementById("cfgAdminEmail").value=c.adminEmail;document.getElementById("cfgCompany").value=c.companyName; }
+function saveCfgForm(){ const sd=Math.min(31,Math.max(1,Number(document.getElementById("cfgSubmitDay").value)||25));const pd=Math.min(31,Math.max(1,Number(document.getElementById("cfgPayDay").value)||25));
+  saveCfg({submitDay:sd,payDay:pd,adminEmail:document.getElementById("cfgAdminEmail").value.trim(),companyName:document.getElementById("cfgCompany").value.trim()}); alert("設定を保存しました"); }
+
+/* ---- 確認モーダル・記録編集・契約編集（管理者） ---- */
+function openConfirm(t,msg,ok,cb){document.getElementById("cmTitle").textContent=t;document.getElementById("cmMsg").innerHTML=msg;document.getElementById("cmOk").textContent=ok;_cb=cb;document.getElementById("confirmModal").hidden=false;}
+function closeConfirm(){document.getElementById("confirmModal").hidden=true;_cb=null;}
+function confirmClearAll(){openConfirm("この労働者の全記録を消去",`${userLabel(adminUser)} さんの勤怠記録・稼働日・提出状況を消去します。<br><b>この操作は元に戻せません。</b><br>消去前にCSV/PDF出力でのバックアップを推奨します。`,"すべて消去する",()=>{DB.saveRecords({});DB.saveSchedule({});DB.saveSubmits({});DB.savePlan({});DB.savePlansub({});renderAdmin();});}
+function confirmDelete(k){const d=parseKey(k);openConfirm(`${d.getMonth()+1}/${d.getDate()} の記録を削除`,"この日の記録を削除します。<br><b>この操作は元に戻せません。</b>","削除する",()=>{const r=DB.records();delete r[k];DB.saveRecords(r);renderAdmin();});}
+
+function addBreakRow(s="",e=""){const row=document.createElement("div");row.className="brk-row";row.innerHTML=`<input type="time" class="bs" value="${s}"><span class="tilde">〜</span><input type="time" class="be" value="${e}"><button type="button" class="x" onclick="this.parentNode.remove()">×</button>`;document.getElementById("emBreaks").appendChild(row);}
+function onKindChange(){document.getElementById("emWorkFields").style.display=document.getElementById("emKind").value==="work"?"":"none";}
+function openEdit(k){editKey=k;document.getElementById("emErr").textContent="";document.getElementById("emBreaks").innerHTML="";const wrap=document.getElementById("emDateWrap");
+  document.getElementById("emTitle").textContent=k?"記録を編集":"記録を追加";
+  if(k){const d=parseKey(k);wrap.innerHTML=`<label>日付</label><div class="datefixed">${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WD[d.getDay()]})</div>`;}else{wrap.innerHTML=`<label>日付</label><input type="date" id="emDate" value="${todayKey()}">`;}
+  const r=k?DB.records()[k]:null;document.getElementById("emKind").value=(r&&r.leave)?r.leave.type:"work";
+  document.getElementById("emIn").value=r&&!r.leave?hmInput(r.in):"";document.getElementById("emOut").value=r&&!r.leave?hmInput(r.out):"";
+  document.getElementById("emNote").value=r?(r.note||(r.leave&&r.leave.note)||""):"";
+  if(r&&r.breaks)r.breaks.forEach(b=>addBreakRow(hmInput(b.start),hmInput(b.end)));onKindChange();document.getElementById("editModal").hidden=false;}
+function closeEdit(){document.getElementById("editModal").hidden=true;editKey=null;}
+function saveEdit(){const key=editKey||(document.getElementById("emDate")&&document.getElementById("emDate").value);const err=document.getElementById("emErr");if(!key){err.textContent="日付を選択してください";return;}
+  const kind=document.getElementById("emKind").value;const note=document.getElementById("emNote").value.trim();const recs=DB.records();
+  if(kind!=="work"){recs[key]={in:null,out:null,breaks:[],leave:{type:kind,note}};DB.saveRecords(recs);closeEdit();renderAdmin();return;}
+  const inV=document.getElementById("emIn").value,outV=document.getElementById("emOut").value;if(!inV){err.textContent="出勤時刻を入力してください";return;}
+  const inTs=tsFrom(key,inV),outTs=tsFrom(key,outV);if(outTs&&outTs<inTs){err.textContent="退勤は出勤より後の時刻にしてください";return;}
+  const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
+  recs[key]={in:inTs,out:outTs,breaks,note};DB.saveRecords(recs);closeEdit();renderAdmin();}
+
+function openContract(){const c=getContract();
+  document.getElementById("ctEmployer").value=c.employer||"";document.getElementById("ctEmployee").value=c.employee||userLabel(adminUser)||"";
+  document.getElementById("ctType").value=c.type||"";document.getElementById("ctTerm").value=c.term||"";
+  document.getElementById("ctLocation").value=c.location||"";document.getElementById("ctJob").value=c.job||"";
+  document.getElementById("ctWorkHours").value=c.workHours||"";document.getElementById("ctBreak").value=c.breakInfo||"";
+  document.getElementById("ctHolidays").value=c.holidays||"";document.getElementById("ctWageType").value=c.wageType||"";
+  document.getElementById("ctWageAmount").value=c.wageAmount||"";document.getElementById("ctClosing").value=c.closing||"";
+  document.getElementById("ctPayday").value=c.payday||"";document.getElementById("ctInsurance").value=c.insurance||"";
+  document.getElementById("ctNote").value=c.note||"";document.getElementById("contractModal").hidden=false;}
+function saveContractForm(){const g=id=>document.getElementById(id).value.trim();
+  saveContract({employer:g("ctEmployer"),employee:g("ctEmployee"),type:g("ctType"),term:g("ctTerm"),location:g("ctLocation"),
+    job:g("ctJob"),workHours:g("ctWorkHours"),breakInfo:g("ctBreak"),holidays:g("ctHolidays"),wageType:g("ctWageType"),
+    wageAmount:g("ctWageAmount"),closing:g("ctClosing"),payday:g("ctPayday"),insurance:g("ctInsurance"),note:g("ctNote")});
+  document.getElementById("contractModal").hidden=true;renderContract();}
+
+/* ---- render / boot ---- */
+function renderAdmin(){
+  setCurrentUser(adminUser);
+  document.getElementById("mLabel").textContent=`${adminMonthDate.getFullYear()}年${adminMonthDate.getMonth()+1}月`;
+  renderWorkerBar();renderNotifications();
+  if(!adminUser){ ["sumGrid","contractBox","errBox","calBox","adminRecords","subBox","planSubBox"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<div class="empty">「＋ 労働者を追加」から登録してください</div>`;}); renderNewsAdmin();renderCfg();return; }
+  renderSummary();renderContract();renderErrors();renderCalendar();renderRecords();renderSubmissions();renderPlanSubs();renderNewsAdmin();renderCfg();
+}
+window.afterSettings=function(){ setHeaderName(); ensureAdminUser(); renderAdmin(); };
+window.onAuthReady=function(){ showAuth("ready");document.getElementById("hdrName").hidden=false;document.getElementById("adminContent").hidden=false;setHeaderName();ensureAdminUser();renderAdmin(); };
+function boot(){const st=authState();showAuth(st);if(st==="ready")window.onAuthReady();else document.getElementById("hdrName").hidden=true;}
+
+document.getElementById("cmOk").addEventListener("click",()=>{const cb=_cb;closeConfirm();if(cb)cb();});
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{if(e.target===o)o.hidden=true;}));
+onExternalChange(()=>{if(authState()==="ready")renderAdmin();});
+boot();
+</script>
+</body>
+</html>

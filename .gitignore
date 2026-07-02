@@ -1,0 +1,10 @@
+# Basic認証のパスワードファイル（ハッシュ流出防止のためコミットしない）
+.htpasswd
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.wtest
+.claude/
