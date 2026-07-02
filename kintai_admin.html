@@ -21,7 +21,7 @@
       <div class="who" id="who"></div>
       <span class="rolebadge admin">管理者</span>
       <button class="mini" onclick="openSettings()">設定</button>
-      <button class="mini" onclick="logout()">ログアウト</button>
+      <button class="mini solid danger" onclick="logout()">ログアウト</button>
     </div>
   </header>
 
@@ -240,6 +240,10 @@
     <div class="fieldrow"><div class="field"><label>締め日</label><input id="ctClosing" placeholder="例）月末"></div><div class="field"><label>支払日</label><input id="ctPayday" placeholder="例）翌月25日"></div></div>
     <div class="field"><label>加入保険</label><input id="ctInsurance" placeholder="例）雇用・労災・健康・厚生年金"></div>
     <div class="field"><label>備考</label><input id="ctNote"></div>
+    <div class="field"><label>契約書PDF（任意・取り込み）</label>
+      <label class="filebtn">📎 PDFを選択<input type="file" id="ctPdf" accept="application/pdf" onchange="onContractPdf(event)"></label>
+      <div class="note" id="ctPdfName" style="margin-top:6px;color:var(--muted)"></div>
+    </div>
     <div class="modal-actions"><button class="mini" onclick="document.getElementById('contractModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveContractForm()">保存</button></div>
   </div>
 </div>
@@ -259,6 +263,12 @@
     <div class="modal-actions"><button class="mini" onclick="document.getElementById('settingsModal').hidden=true">閉じる</button>
       <button class="mini solid" onclick="saveSettings()">保存</button></div>
   </div>
+</div>
+
+<!-- 画像拡大 -->
+<div class="overlay" id="imgModal" hidden>
+  <div class="modal" style="max-width:660px"><img id="imgModalTag" alt="添付画像" style="width:100%;border-radius:10px;display:block">
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('imgModal').hidden=true">閉じる</button></div></div>
 </div>
 
 <div id="printArea"></div>
@@ -403,11 +413,11 @@ function doReject(){ const mk=rejectKey; if(!mk){closeReject();return;} const c=
 /* ---- 出勤予定の申請 ---- */
 function renderPlanSubs(){
   const ps=DB.plansub();const keys=Object.keys(ps).sort().reverse();const box=document.getElementById("planSubBox");
-  const rows=keys.map(mk=>{const s=ps[mk];const label={submitted:"提出済（確認待ち）",approved:"確定",rejected:"差し戻し"}[s.status]||s.status;
+  const rows=keys.map(mk=>{const s=ps[mk];const label={submitted:"提出済（確認待ち）",approved:"承認済み",rejected:"差し戻し"}[s.status]||s.status;
     let act="";
-    if(s.status==="submitted")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">確定＆稼働日に反映</button><button class="mini danger" onclick="rejectPlanSub('${mk}')">差し戻し</button>`;
+    if(s.status==="submitted")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">承認＆稼働日に反映</button><button class="mini danger" onclick="rejectPlanSub('${mk}')">差し戻し</button>`;
     else if(s.status==="approved")act=`<button class="mini" onclick="applyPlan('${mk}')">稼働日に再反映</button>`;
-    else if(s.status==="rejected")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">確定</button>`;
+    else if(s.status==="rejected")act=`<button class="mini solid" onclick="approvePlanSub('${mk}')">承認</button>`;
     return `<div class="subrow"><div><span class="m">${mkLabel(mk)} 出勤予定</span><div class="note" style="color:var(--muted);font-size:.72rem">提出：${new Date(s.submittedAt).toLocaleString('ja-JP')}${s.comment?` / ${esc(s.comment)}`:""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge ${s.status}">${label}</span>${act}</div></div>`;});
   box.innerHTML=rows.length?rows.join(""):`<div class="empty">出勤予定の提出はまだありません</div>`;
 }
@@ -426,13 +436,18 @@ function renderTransportAdmin(){
     else if(s.status==="approved")act=`<button class="mini solid warn" onclick="markTransportPaidCur('${mk}')">精算済</button><button class="mini danger" onclick="rejectTransport('${mk}')">差し戻し</button>`;
     else if(s.status==="rejected")act=`<button class="mini solid" onclick="approveTransport('${mk}')">承認</button>`;
     else act=`<span class="note" style="color:var(--muted)">完了</span>`;
-    const rows=entries.map(e=>{const dt=parseKey(e.date);return `<tr><td data-l="日付">${dt.getMonth()+1}/${dt.getDate()}</td><td data-l="目的">${esc(e.purpose||"")}</td><td data-l="区間">${esc(e.from||"")}${(e.from||e.to)?" → ":""}${esc(e.to||"")}${e.round?"（往復）":""}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td></tr>`;}).join("");
-    const table=entries.length?`<table><thead><tr><th>日付</th><th>目的</th><th>区間</th><th>金額</th></tr></thead><tbody>${rows}</tbody></table>`:`<div class="note" style="color:var(--muted);padding:6px 0">明細なし</div>`;
+    const rows=entries.map(e=>{const dt=parseKey(e.date);const cat=e.category||"交通費";
+      const route=`${esc(e.from||"")}${(e.from||e.to)?" → ":""}${esc(e.to||"")}`;
+      const thumb=e.image?` <img class="exp-thumb" src="${e.image}" onclick="openExpImage('${e.id}')" title="画像を表示">`:"";
+      const content=`${esc(e.purpose||"")}${route?` <span class="d2">${route}${e.round?"（往復）":""}</span>`:""}${e.note?` <span class="d2">${esc(e.note)}</span>`:""}${thumb}`;
+      return `<tr><td data-l="日付">${dt.getMonth()+1}/${dt.getDate()}</td><td data-l="区分"><span class="tag ${cat==='経費'?'exp':'work'}">${cat}</span></td><td data-l="内容">${content}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td></tr>`;}).join("");
+    const table=entries.length?`<table><thead><tr><th>日付</th><th>区分</th><th>内容</th><th>金額</th></tr></thead><tbody>${rows}</tbody></table>`:`<div class="note" style="color:var(--muted);padding:6px 0">明細なし</div>`;
     return `<div style="border-bottom:1px solid #eef3f3;padding:12px 0"><div class="subrow" style="border:0;padding:0 0 8px"><div><span class="m">${mkLabel(mk)} 交通費</span><div class="note" style="color:var(--muted);font-size:.72rem">申請：${new Date(s.submittedAt).toLocaleString('ja-JP')}${s.comment?` / ${esc(s.comment)}`:""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-weight:800;font-variant-numeric:tabular-nums">${yen(total)}</span><span class="badge ${s.status}">${label}</span>${act}</div></div>${table}</div>`;
   }).join("");
 }
 function approveTransport(mk){setTransportStatus(adminUser,mk,{status:"approved",reviewedAt:Date.now(),comment:""});renderAdmin();}
 function markTransportPaidCur(mk){setTransportStatus(adminUser,mk,{status:"paid",paidAt:Date.now()});renderAdmin();}
+function openExpImage(id){const e=DB.transport().find(x=>x.id===id);if(!e||!e.image)return;document.getElementById("imgModalTag").src=e.image;document.getElementById("imgModal").hidden=false;}
 
 /* ---- お知らせ配信 ---- */
 function renderNewsAdmin(){
@@ -477,7 +492,16 @@ function saveEdit(){const key=editKey||(document.getElementById("emDate")&&docum
   const breaks=[];document.querySelectorAll("#emBreaks .brk-row").forEach(row=>{const s=row.querySelector(".bs").value,e=row.querySelector(".be").value;if(s)breaks.push({start:tsFrom(key,s),end:e?tsFrom(key,e):null});});
   recs[key]={in:inTs,out:outTs,breaks,note};DB.saveRecords(recs);closeEdit();renderAdmin();}
 
+let _contractPdf=undefined; let _ctPdfName="";
+function onContractPdf(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
+  if(f.type!=="application/pdf"){alert("PDFファイルを選択してください");return;}
+  const reader=new FileReader();reader.onload=e=>{_contractPdf=e.target.result;_ctPdfName=f.name;
+    document.getElementById("ctPdfName").innerHTML=`取り込み予定：${esc(f.name)} <button type="button" class="iconbtn del" onclick="removeContractPdf()">取り消し</button>`;};
+  reader.onerror=()=>alert("PDFを読み込めませんでした");reader.readAsDataURL(f);}
+function removeContractPdf(){_contractPdf=null;_ctPdfName="";document.getElementById("ctPdf").value="";document.getElementById("ctPdfName").innerHTML="削除予定（保存で反映）";}
 function openContract(){const c=getContract();
+  _contractPdf=undefined;_ctPdfName="";document.getElementById("ctPdf").value="";
+  document.getElementById("ctPdfName").innerHTML=c.pdfData?`登録済み：${esc(c.pdfName||'contract.pdf')} <button type="button" class="iconbtn del" onclick="removeContractPdf()">削除</button>`:"未登録";
   document.getElementById("ctEmployer").value=c.employer||"";document.getElementById("ctEmployee").value=c.employee||userLabel(adminUser)||"";
   document.getElementById("ctType").value=c.type||"";document.getElementById("ctTerm").value=c.term||"";
   document.getElementById("ctLocation").value=c.location||"";document.getElementById("ctJob").value=c.job||"";
@@ -487,9 +511,14 @@ function openContract(){const c=getContract();
   document.getElementById("ctPayday").value=c.payday||"";document.getElementById("ctInsurance").value=c.insurance||"";
   document.getElementById("ctNote").value=c.note||"";document.getElementById("contractModal").hidden=false;}
 function saveContractForm(){const g=id=>document.getElementById(id).value.trim();
-  saveContract({employer:g("ctEmployer"),employee:g("ctEmployee"),type:g("ctType"),term:g("ctTerm"),location:g("ctLocation"),
+  const prev=getContract();
+  const obj={employer:g("ctEmployer"),employee:g("ctEmployee"),type:g("ctType"),term:g("ctTerm"),location:g("ctLocation"),
     job:g("ctJob"),workHours:g("ctWorkHours"),breakInfo:g("ctBreak"),holidays:g("ctHolidays"),wageType:g("ctWageType"),
-    wageAmount:g("ctWageAmount"),closing:g("ctClosing"),payday:g("ctPayday"),insurance:g("ctInsurance"),note:g("ctNote")});
+    wageAmount:g("ctWageAmount"),closing:g("ctClosing"),payday:g("ctPayday"),insurance:g("ctInsurance"),note:g("ctNote")};
+  // PDF: undefined=未変更(既存維持) / null=削除 / string=新規
+  if(_contractPdf===undefined){ if(prev.pdfData){obj.pdfData=prev.pdfData;obj.pdfName=prev.pdfName;} }
+  else if(_contractPdf){ obj.pdfData=_contractPdf;obj.pdfName=_ctPdfName||"contract.pdf"; }
+  saveContract(obj);
   document.getElementById("contractModal").hidden=true;renderContract();}
 
 /* ---- render / boot ---- */

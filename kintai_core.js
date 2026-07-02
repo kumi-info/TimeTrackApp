@@ -220,11 +220,23 @@ function contractView(canEdit){
     workHours:c.workHours,breakInfo:c.breakInfo,holidays:c.holidays,wage:wage,closing:c.closing,payday:c.payday,
     insurance:c.insurance,note:c.note};
   const any=Object.values(vals).some(v=>v&&String(v).trim());
-  if(!any) return `<div class="contract-empty">雇用契約情報は未登録です${canEdit?"（「編集」から登録できます）":"（管理者が登録します）"}</div>`;
-  return `<div class="contract-card">`+CONTRACT_FIELDS.map(([k,l,full])=>{
+  const pdfBtn = c.pdfData ? `<div style="margin-top:12px"><button class="mini solid" onclick="openContractPdf()">📎 契約書PDFを表示</button> <span class="note" style="color:var(--muted)">${esc(c.pdfName||'contract.pdf')}</span></div>` : "";
+  if(!any && !c.pdfData) return `<div class="contract-empty">雇用契約情報は未登録です${canEdit?"（「編集」から登録できます）":"（管理者が登録します）"}</div>`;
+  const card = any ? `<div class="contract-card">`+CONTRACT_FIELDS.map(([k,l,full])=>{
     const v=vals[k]; if(!v||!String(v).trim())return "";
     return `<div class="ci ${full?'full':''}"><div class="l">${l}</div><div class="v">${String(v).replace(/</g,"&lt;").replace(/\n/g,"<br>")}</div></div>`;
-  }).join("")+`</div>`;
+  }).join("")+`</div>` : "";
+  return card + pdfBtn;
+}
+/* 契約書PDF（管理者が取り込んだもの）を新しいタブで開く */
+function openContractPdf(){
+  const c=getContract(); if(!c||!c.pdfData) return;
+  try{
+    const parts=c.pdfData.split(","); const bin=atob(parts[1]); const arr=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([arr],{type:"application/pdf"}));
+    window.open(url,"_blank");
+  }catch(e){ try{ window.open(c.pdfData,"_blank"); }catch(e2){ alert("PDFを開けませんでした"); } }
 }
 
 /* ===== PDF via print ===== */
@@ -268,6 +280,27 @@ function printTimesheet(mkey){
     <tbody>${rows}</tbody>
     <tfoot><tr class="tfoot"><td colspan="6">合計</td><td>${fmtH(agg.workMin)}h</td><td>${fmtH(agg.otMin)}h</td></tr></tfoot></table>
     <div class="note">出勤日数 ${agg.workDays}日／休暇 ${agg.leaveDays}日／深夜 ${fmtH(agg.niMin)}h／休日勤務 ${agg.holidayDays}日。時間外は1日8時間超、深夜は22:00〜翌5:00の実働。割増賃金の計算は社会保険労務士にご確認ください。</div>
+  </div>`);
+}
+
+/* 給与証明書（勤怠記録＋雇用契約から作成する参考書類） */
+function printSalaryCert(mk){
+  const c=getContract(); const emp=c.employee||userLabel(CURRENT_USER)||"";
+  const [y,m]=mk.split("-").map(Number); const agg=aggregate(mk);
+  const amt=Number(c.wageAmount)||0; let est="—", basis="";
+  if(c.wageType==="hourly"){ est=yen(Math.round(amt*(agg.workMin/60))); basis=`時給 ${yen(amt)} × 実働 ${fmtH(agg.workMin)}h`; }
+  else if(c.wageType==="daily"){ est=yen(amt*agg.workDays); basis=`日給 ${yen(amt)} × 出勤 ${agg.workDays}日`; }
+  else if(c.wageType==="monthly"){ est=yen(amt); basis=`月給 ${yen(amt)}`; }
+  const rows=[["事業者名",c.employer],["労働者名",emp],["雇用形態",c.type],["賃金",contractWage(c)],
+    ["対象期間",`${y}年${m}月`],["出勤日数",`${agg.workDays}日`],["実働時間",`${fmtH(agg.workMin)}時間`],
+    ["時間外労働",`${fmtH(agg.otMin)}時間`],["支給見込額",est+(basis?`（${basis}）`:"")]];
+  const body=rows.map(([l,v])=>`<tr><th>${l}</th><td>${esc(v)||"—"}</td></tr>`).join("");
+  const today=new Date().toLocaleDateString('ja-JP');
+  printDoc(`<div class="pdoc"><h1>給 与 証 明 書</h1>
+    <div class="psub">発行日：${today}</div>
+    <table>${body}</table>
+    <div class="sign">上記のとおり相違ないことを証明します。<br><br>事業者：__________________________　㊞</div>
+    <div class="note">※本書は勤怠記録と雇用契約の登録内容から作成した参考書類です。支給見込額は記録された実働時間等に基づく概算であり、実際の支給額・控除・各種手当を保証するものではありません。正式な証明は給与明細・雇用主にご確認ください。</div>
   </div>`);
 }
 
@@ -456,7 +489,7 @@ global.Kintai = {
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
   AK, hashPw, AUTH, authState,
   setHeaderName, showAuth, doSetup, doLogin, logout, openSettings, saveSettings,
-  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, esc, printDoc, printContract, printTimesheet,
+  CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert,
   getCfg, saveCfg, submitDayFor,
   transportForMonth, transportEntryTotal, transportTotal, yen,
   getNews, saveNews, addNews, deleteNews, newsSorted,

@@ -19,8 +19,9 @@
     <div class="headername" id="hdrName" hidden>
       <div class="who" id="who"></div>
       <span class="rolebadge user">労働者</span>
+      <button class="mini" onclick="openMenu()">☰ メニュー</button>
       <button class="mini" onclick="openSettings()">設定</button>
-      <button class="mini" onclick="logout()">ログアウト</button>
+      <button class="mini solid danger" onclick="logout()">ログアウト</button>
     </div>
   </header>
 
@@ -76,10 +77,9 @@
       <!-- 休暇の隣：クイックアクセス -->
       <div class="quickbar">
         <button class="mini" onclick="openLeave()">＋ 休暇を登録</button>
-        <button class="mini" onclick="showView('calendar')">🗓 勤怠カレンダー</button>
         <button class="mini solid" onclick="openSubmitDialog()">📤 勤怠表提出</button>
-        <button class="mini" onclick="showView('transport')">🚃 交通費申請</button>
-        <button class="mini" onclick="openContractModal()">📄 雇用契約</button>
+        <button class="mini" onclick="openEdit(null)">✍ 手入力</button>
+        <button class="mini" onclick="openMenu()">☰ メニュー</button>
       </div>
 
       <!-- 提出リマインド -->
@@ -122,7 +122,6 @@
         勤怠記録は労働基準法により原則5年（当分の間3年）の保存義務があります。割増賃金の計算・36協定・就業規則の適用は社会保険労務士にご確認ください（本ツールは記録・集計の補助です）。
       </div>
 
-      <div class="crosslink">管理者の方はこちら → <a href="kintai_admin.html">管理画面を開く</a></div>
     </div>
 
     <!-- ===== 勤怠カレンダー（別ページ） ===== -->
@@ -152,11 +151,11 @@
     <div id="viewTransport" hidden>
       <div style="margin-bottom:8px"><button class="mini" onclick="showView('home')">← ホームに戻る</button></div>
       <section class="panel">
-        <div class="panel-head"><h2>🚃 交通費申請</h2>
+        <div class="panel-head"><h2>🧾 経費申請</h2>
           <div class="monthnav"><button class="nav" onclick="shiftMonth(-1)">‹</button><b id="mLabel3">—</b><button class="nav" onclick="shiftMonth(1)">›</button></div>
         </div>
-        <div class="panel-head" style="border-top:1px solid var(--line)"><span style="font-size:.76rem;color:var(--muted);font-weight:700">通勤・出張などの交通費を申請できます</span>
-          <div class="tools"><button class="mini" onclick="openTransport(null)">＋ 交通費を追加</button></div>
+        <div class="panel-head" style="border-top:1px solid var(--line)"><span style="font-size:.76rem;color:var(--muted);font-weight:700">交通費・経費を申請できます（領収書などの画像添付も可能）</span>
+          <div class="tools"><button class="mini" onclick="openTransport(null)">＋ 経費を追加</button></div>
         </div>
         <div id="transportList"></div>
         <div class="panel-body">
@@ -164,7 +163,7 @@
             <span style="display:flex;gap:10px;align-items:center"><span style="font-weight:800;font-variant-numeric:tabular-nums" id="trTotal">¥0</span><span class="badge none" id="trBadge">未申請</span></span></div>
           <p class="note" id="trNote" style="color:var(--muted);margin:8px 0 12px"></p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="mini solid" id="btnTrSubmit" onclick="openTransportSubmit()">この月の交通費を申請</button>
+            <button class="mini solid" id="btnTrSubmit" onclick="openTransportSubmit()">この月の経費を申請</button>
             <button class="mini" id="btnTrUnsubmit" onclick="unsubmitTransport()" style="display:none">申請を取り消す</button>
           </div>
         </div>
@@ -208,25 +207,54 @@
   </div>
 </div>
 
-<!-- 交通費 入力モーダル -->
+<!-- 経費 入力モーダル -->
 <div class="overlay" id="transportModal" hidden>
   <div class="modal" role="dialog" aria-modal="true">
-    <h3 id="trTitle">交通費を追加</h3>
-    <div class="field"><label>日付</label><input type="date" id="trDate"></div>
-    <div class="field"><label>目的</label><select id="trPurpose">
-      <option value="通勤">通勤</option><option value="出張">出張</option><option value="外出">外出</option><option value="その他">その他</option></select></div>
+    <h3 id="trTitle">経費を追加</h3>
     <div class="fieldrow">
+      <div class="field"><label>区分</label><select id="trCategory" onchange="onExpCategory()">
+        <option value="交通費">交通費</option><option value="経費">経費</option></select></div>
+      <div class="field"><label>日付</label><input type="date" id="trDate"></div>
+    </div>
+    <div class="field"><label>目的・内容</label><select id="trPurpose">
+      <option value="通勤">通勤</option><option value="出張">出張</option><option value="外出">外出</option>
+      <option value="備品購入">備品購入</option><option value="接待">接待</option><option value="その他">その他</option></select></div>
+    <div class="fieldrow" id="trRouteRow">
       <div class="field"><label>出発</label><input type="text" id="trFrom" placeholder="例）自宅"></div>
       <div class="field"><label>到着</label><input type="text" id="trTo" placeholder="例）本社"></div>
     </div>
     <div class="fieldrow">
-      <div class="field"><label>金額（円・片道）</label><input type="number" id="trAmount" inputmode="numeric" min="0" placeholder="0"></div>
-      <div class="field"><label>&nbsp;</label><label class="remember" style="max-width:none;margin:0;padding:11px 0"><input type="checkbox" id="trRound">往復</label></div>
+      <div class="field"><label>金額（円<span id="trAmtHint">・片道</span>）</label><input type="number" id="trAmount" inputmode="numeric" min="0" placeholder="0"></div>
+      <div class="field" id="trRoundWrap"><label>&nbsp;</label><label class="remember" style="max-width:none;margin:0;padding:11px 0"><input type="checkbox" id="trRound">往復</label></div>
     </div>
-    <div class="field"><label>交通機関・備考（任意）</label><input type="text" id="trNoteInput" placeholder="例）電車（○○線）"></div>
+    <div class="field"><label>交通機関・備考（任意）</label><input type="text" id="trNoteInput" placeholder="例）電車（○○線）／領収書あり など"></div>
+    <div class="field"><label>画像（領収書など・任意）</label>
+      <label class="filebtn">📷 画像を選択<input type="file" id="trImage" accept="image/*" onchange="onExpImage(event)"></label>
+      <div class="img-preview" id="trImgPreview" hidden><img id="trImgTag" alt="添付画像"><button type="button" class="rm" onclick="clearExpImage()">×</button></div>
+    </div>
     <div class="err-txt" id="trErr"></div>
     <div class="modal-actions"><button class="mini" onclick="document.getElementById('transportModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveTransportEntry()">保存</button></div>
   </div>
+</div>
+
+<!-- メニュー -->
+<div class="overlay" id="menuModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>メニュー</h3>
+    <div class="menu-list">
+      <button class="menu-item" onclick="menuGo('contract')"><span class="mi-ic">📄</span>雇用契約</button>
+      <button class="menu-item" onclick="menuGo('calendar')"><span class="mi-ic">🗓</span>勤怠カレンダー</button>
+      <button class="menu-item" onclick="menuGo('expense')"><span class="mi-ic">🧾</span>経費申請（交通費・経費）</button>
+      <button class="menu-item" onclick="menuGo('salary')"><span class="mi-ic">📑</span>給与証明書</button>
+    </div>
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('menuModal').hidden=true">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 画像拡大 -->
+<div class="overlay" id="imgModal" hidden>
+  <div class="modal" style="max-width:660px"><img id="imgModalTag" alt="添付画像" style="width:100%;border-radius:10px;display:block">
+    <div class="modal-actions"><button class="mini solid" onclick="document.getElementById('imgModal').hidden=true">閉じる</button></div></div>
 </div>
 
 <!-- 雇用契約モーダル -->
@@ -297,6 +325,14 @@ function showView(name){
   if(name==='transport') renderTransport();
   window.scrollTo({top:0,behavior:'smooth'});
 }
+function openMenu(){ document.getElementById('menuModal').hidden=false; }
+function menuGo(what){
+  document.getElementById('menuModal').hidden=true;
+  if(what==='contract') openContractModal();
+  else if(what==='calendar') showView('calendar');
+  else if(what==='expense') showView('transport');
+  else if(what==='salary') printSalaryCert(monthKey(viewMonthDate));
+}
 
 /* ---- 打刻 ---- */
 function getTodayRec(){ const r=DB.records(); const k=todayKey(); return r[k]||{in:null,out:null,breaks:[]}; }
@@ -365,18 +401,19 @@ function renderPlanStatus(){
   const bSub=document.getElementById("btnPlanSubmit"),bUn=document.getElementById("btnPlanUnsubmit");
   document.getElementById("planSubLabel").textContent=`${mkLabel(mk)} の出勤予定`;
   badge.className="badge "+(st==="none"?"none":st);
-  badge.textContent={none:"未提出",submitted:"提出済",approved:"確定",rejected:"差し戻し"}[st]||st;
+  badge.textContent={none:"未提出",submitted:"提出済",approved:"承認済み",rejected:"差し戻し"}[st]||st;
   if(st==="none"||st==="rejected"){bSub.style.display="";bUn.style.display="none";bSub.textContent=st==="rejected"?"再提出する":"この月の予定を提出";
     note.textContent=st==="rejected"?(ps.comment?`差し戻し：${ps.comment}`:"差し戻されました。修正して再提出してください。"):"出勤予定を入力し、提出すると管理者に共有されます。";}
   else if(st==="submitted"){bSub.style.display="none";bUn.style.display="";note.textContent=`提出日時：${new Date(ps.submittedAt).toLocaleString('ja-JP')}（確認待ち）`;}
-  else{bSub.style.display="none";bUn.style.display="none";note.textContent="管理者が確定しました。";}
+  else{bSub.style.display="none";bUn.style.display="none";note.textContent="管理者が承認しました。";}
 }
 function submitPlan(){const mk=monthKey(viewMonthDate);
   openConfirm("出勤予定の提出",`${mkLabel(mk)} の出勤予定を提出しますか？`,"提出する",()=>{const s=DB.plansub();s[mk]={submittedAt:Date.now(),status:"submitted"};DB.savePlansub(s);renderPlanCalendar();});}
 function unsubmitPlan(){const mk=monthKey(viewMonthDate);const s=DB.plansub();delete s[mk];DB.savePlansub(s);renderPlanCalendar();}
 
-/* ---- 交通費申請 ---- */
+/* ---- 経費申請（交通費・経費） ---- */
 let trEditId=null;
+let _expImage=null;
 function renderTransport(){
   const mk=monthKey(viewMonthDate);
   const el=document.getElementById("mLabel3");if(el)el.textContent=`${viewMonthDate.getFullYear()}年${viewMonthDate.getMonth()+1}月`;
@@ -384,18 +421,38 @@ function renderTransport(){
   const st=(DB.transportsub()[mk]||{}).status||"none";
   const locked=(st==="submitted"||st==="approved"||st==="paid");
   const box=document.getElementById("transportList");
-  if(!list.length){ box.innerHTML=`<div class="empty"><b>この月の交通費はありません</b>「＋交通費を追加」から申請内容を入力できます</div>`; }
+  if(!list.length){ box.innerHTML=`<div class="empty"><b>この月の経費はありません</b>「＋経費を追加」から交通費・経費を入力できます</div>`; }
   else{
     const rows=list.map(e=>{
+      const cat=e.category||"交通費";
       const dt=parseKey(e.date);const dl=`<span class="d1">${dt.getMonth()+1}/${dt.getDate()}</span><span class="d2">${WD[dt.getDay()]}</span>`;
       const route=`${esc(e.from||"")}${e.from||e.to?" → ":""}${esc(e.to||"")}`;
+      const thumb=e.image?`<img class="exp-thumb" src="${e.image}" onclick="openExpImage('${e.id}')" title="画像を表示">`:"";
+      const content=`${esc(e.purpose||"")}${route?`<span class="d2">${route}${e.round?"（往復）":""}</span>`:""}${e.note?`<span class="d2">${esc(e.note)}</span>`:""} ${thumb}`;
       const act=locked?`<span class="note" style="color:var(--muted)">申請中</span>`:`<div class="rowact"><button class="iconbtn" onclick="openTransport('${e.id}')">編集</button><button class="iconbtn del" onclick="deleteTransportEntry('${e.id}')">削除</button></div>`;
-      return `<tr><td class="datecell" data-l="日付">${dl}</td><td data-l="目的"><span class="tag work">${esc(e.purpose||"")}</span></td><td data-l="区間">${route||"—"}${e.round?' <span class="d2">往復</span>':''}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td><td class="actcell" data-l="操作">${act}</td></tr>`;
+      return `<tr><td class="datecell" data-l="日付">${dl}</td><td data-l="区分"><span class="tag ${cat==='経費'?'exp':'work'}">${cat}</span></td><td data-l="内容">${content}</td><td class="work" data-l="金額">${yen(transportEntryTotal(e))}</td><td class="actcell" data-l="操作">${act}</td></tr>`;
     });
-    box.innerHTML=`<table><thead><tr><th>日付</th><th>目的</th><th>区間</th><th>金額</th><th>操作</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+    box.innerHTML=`<table><thead><tr><th>日付</th><th>区分</th><th>内容</th><th>金額</th><th>操作</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
   }
   renderTransportStatus();
 }
+function openExpImage(id){const e=DB.transport().find(x=>x.id===id);if(!e||!e.image)return;document.getElementById("imgModalTag").src=e.image;document.getElementById("imgModal").hidden=false;}
+/* 画像を縮小して dataURL 化（localStorage 容量対策） */
+function readImageResized(file,cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{const img=new Image();img.onload=()=>{const max=1000;let w=img.width,h=img.height;
+    if(w>max||h>max){const r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);}
+    const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);
+    try{cb(cv.toDataURL("image/jpeg",0.72));}catch(e){cb(null);}};img.onerror=()=>cb(null);img.src=ev.target.result;};
+  reader.onerror=()=>cb(null);reader.readAsDataURL(file);
+}
+function onExpImage(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
+  readImageResized(f,d=>{if(!d){alert("画像を読み込めませんでした");return;}_expImage=d;document.getElementById("trImgTag").src=d;document.getElementById("trImgPreview").hidden=false;});}
+function clearExpImage(){_expImage=null;document.getElementById("trImage").value="";document.getElementById("trImgPreview").hidden=true;document.getElementById("trImgTag").src="";}
+function onExpCategory(){const isTrans=document.getElementById("trCategory").value==="交通費";
+  document.getElementById("trRouteRow").style.display=isTrans?"":"none";
+  document.getElementById("trRoundWrap").style.display=isTrans?"":"none";
+  document.getElementById("trAmtHint").style.display=isTrans?"":"none";}
 function renderTransportStatus(){
   const mk=monthKey(viewMonthDate);const total=transportTotal(currentUser(),mk);
   const ps=DB.transportsub()[mk];const st=ps?ps.status:"none";
@@ -415,7 +472,8 @@ function openTransport(id){
   const st=(DB.transportsub()[monthKey(viewMonthDate)]||{}).status||"none";
   if(st==="submitted"||st==="approved"||st==="paid"){alert("申請中／承認済みのため編集できません。取り消してから修正してください。");return;}
   trEditId=id;const e=id?DB.transport().find(x=>x.id===id):null;
-  document.getElementById("trTitle").textContent=id?"交通費を編集":"交通費を追加";
+  document.getElementById("trTitle").textContent=id?"経費を編集":"経費を追加";
+  document.getElementById("trCategory").value=e?(e.category||"交通費"):"交通費";
   document.getElementById("trDate").value=e?e.date:todayKey();
   document.getElementById("trPurpose").value=e?(e.purpose||"通勤"):"通勤";
   document.getElementById("trFrom").value=e?(e.from||""):"";
@@ -423,7 +481,12 @@ function openTransport(id){
   document.getElementById("trAmount").value=e?(e.amount||""):"";
   document.getElementById("trRound").checked=e?!!e.round:false;
   document.getElementById("trNoteInput").value=e?(e.note||""):"";
+  _expImage=(e&&e.image)?e.image:null;
+  if(_expImage){document.getElementById("trImgTag").src=_expImage;document.getElementById("trImgPreview").hidden=false;}
+  else{document.getElementById("trImgPreview").hidden=true;document.getElementById("trImgTag").src="";}
+  document.getElementById("trImage").value="";
   document.getElementById("trErr").textContent="";
+  onExpCategory();
   document.getElementById("transportModal").hidden=false;
 }
 function saveTransportEntry(){
@@ -431,9 +494,11 @@ function saveTransportEntry(){
   if(!date){err.textContent="日付を選択してください";return;}
   const amount=Number(document.getElementById("trAmount").value)||0;
   if(amount<=0){err.textContent="金額を入力してください";return;}
-  const entry={date,purpose:document.getElementById("trPurpose").value,
-    from:document.getElementById("trFrom").value.trim(),to:document.getElementById("trTo").value.trim(),
-    amount,round:document.getElementById("trRound").checked,note:document.getElementById("trNoteInput").value.trim()};
+  const cat=document.getElementById("trCategory").value;const isTrans=cat==="交通費";
+  const entry={category:cat,date,purpose:document.getElementById("trPurpose").value,
+    from:isTrans?document.getElementById("trFrom").value.trim():"",to:isTrans?document.getElementById("trTo").value.trim():"",
+    amount,round:isTrans?document.getElementById("trRound").checked:false,
+    note:document.getElementById("trNoteInput").value.trim(),image:_expImage||null};
   const list=DB.transport();
   if(trEditId){const i=list.findIndex(x=>x.id===trEditId);if(i>=0){entry.id=trEditId;list[i]=entry;}}
   else{entry.id="t"+Date.now()+"_"+Math.floor(Math.random()*10000);list.push(entry);}
