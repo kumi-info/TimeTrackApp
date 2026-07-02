@@ -187,21 +187,44 @@ function downloadCSV(mkey){
 }
 
 /* ===== auth (client-side convenience gate — not a real security boundary) ===== */
-const AK={ CRED:"kintai_v3_cred", SESS:"kintai_v3_session" };
+/* 役割ごとにアカウントとログイン状態を分離：
+   - accounts: { username: {name,email,hash,role:'admin'|'worker'} }
+   - session : { admin: username|null, worker: username|null }
+   各ページは window.ROLE ('admin' | 'worker') を設定する（管理者画面=admin / ユーザー画面=worker）。 */
+const AK={ ACCTS:"kintai_v4_accounts", SESS:"kintai_v4_session", CRED:"kintai_v3_cred", OLDSESS:"kintai_v3_session" };
 async function hashPw(s){
   try{ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("kintai$"+s));
     return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
   catch(e){ let h=5381; for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0; return "f"+h.toString(16); }
 }
+function currentRole(){ return (window.ROLE==="admin")?"admin":"worker"; }
+function getAccounts(){ return _get(AK.ACCTS,{}); }
+function saveAccounts(a){ _set(AK.ACCTS,a); }
+function getAccount(u){ return getAccounts()[u]||null; }
+function hasRoleAccount(role){ const a=getAccounts(); return Object.keys(a).some(u=>a[u].role===role); }
+function getSessions(){ return _get(AK.SESS,{}); }
+function setRoleSession(role,u){ const s=getSessions(); if(u)s[role]=u; else delete s[role]; _set(AK.SESS,s); }
+function roleSessionUser(){ return getSessions()[currentRole()]||null; }
+function currentCred(){ const u=roleSessionUser(); const a=u?getAccount(u):null; return a?{username:u,name:a.name,email:a.email,hash:a.hash,role:a.role}:null; }
+async function upsertWorkerAccount(username,name,email,pw){
+  const accts=getAccounts(); const a=accts[username]||{role:"worker"};
+  a.name=name; a.email=email; a.role="worker"; if(pw) a.hash=await hashPw(pw);
+  accts[username]=a; saveAccounts(accts);
+}
 const AUTH={
-  cred(){ try{ return JSON.parse(localStorage.getItem(AK.CRED)); }catch(e){ return null; } },
-  setCred(c){ try{ localStorage.setItem(AK.CRED,JSON.stringify(c)); }catch(e){} },
-  session(){ try{ return sessionStorage.getItem(AK.SESS)||localStorage.getItem(AK.SESS); }catch(e){ return null; } },
-  login(u,remember){ try{ (remember?localStorage:sessionStorage).setItem(AK.SESS,u);
-    (remember?sessionStorage:localStorage).removeItem(AK.SESS); }catch(e){} },
-  logout(){ try{ localStorage.removeItem(AK.SESS); sessionStorage.removeItem(AK.SESS); }catch(e){} }
+  cred(){ return currentCred(); },
+  account(u){ return getAccount(u); },
+  session(){ return roleSessionUser(); },
+  login(u){ setRoleSession(currentRole(),u); },
+  logout(){ setRoleSession(currentRole(),null); }
 };
-function authState(){ const c=AUTH.cred(); if(!c) return "setup"; if(AUTH.session()!==c.username) return "login"; return "ready"; }
+function authState(){
+  const role=currentRole();
+  if(!hasRoleAccount(role)) return "setup";
+  const su=roleSessionUser(); const a=su?getAccount(su):null;
+  if(!a || a.role!==role) return "login";
+  return "ready";
+}
 
 /* ===== contract (per-user) ===== */
 const CONTRACT_FIELDS=[
@@ -414,7 +437,7 @@ function showAuth(mode){
   if(hg) hg.style.display = "none";
 }
 /* 未ログイン時のヘッダー「ログイン／新規登録」から呼ぶ */
-function gotoLogin(){ showAuth(AUTH.cred()?"login":"setup"); }
+function gotoLogin(){ showAuth(hasRoleAccount(currentRole())?"login":"setup"); }
 function gotoSignup(){ showAuth("setup"); }
 async function doSetup(){
   const g=id=>document.getElementById(id);
@@ -422,19 +445,22 @@ async function doSetup(){
   const pw=g("suPw").value, pw2=g("suPw2").value, err=g("suErr");
   if(!name){err.textContent="お名前を入力してください";return;}
   if(!/^[A-Za-z0-9_.-]{3,}$/.test(user)){err.textContent="ユーザー名は英数字3文字以上で入力してください";return;}
+  const exist=getAccount(user);
+  if(exist){ err.textContent=(exist.role===currentRole())?"そのユーザー名は既に登録済みです。ログインしてください":"そのユーザー名は別の役割で使用されています";return; }
   if(pw.length<8){err.textContent="パスワードは8文字以上にしてください";return;}
   if(pw!==pw2){err.textContent="パスワードが一致しません";return;}
-  AUTH.setCred({username:user,name,email,hash:await hashPw(pw)});
-  AUTH.login(user,true);
+  const accts=getAccounts(); accts[user]={name,email,hash:await hashPw(pw),role:currentRole()}; saveAccounts(accts);
+  if(currentRole()==="worker") upsertUser(user,name,email);
+  AUTH.login(user);
   if(window.onAuthReady) window.onAuthReady();
 }
 async function doLogin(){
-  const c=AUTH.cred(); const err=document.getElementById("liErr");
+  const err=document.getElementById("liErr");
   const user=document.getElementById("liUser").value.trim();
   const pw=document.getElementById("liPw").value;
-  const remember=document.getElementById("liRemember").checked;
-  if(!c||user!==c.username||(await hashPw(pw))!==c.hash){err.textContent="ユーザー名またはパスワードが違います";return;}
-  AUTH.login(user,remember);
+  const a=getAccount(user);
+  if(!a || a.role!==currentRole() || (await hashPw(pw))!==a.hash){ err.textContent="ユーザー名またはパスワードが違います"; return; }
+  AUTH.login(user);
   if(window.onAuthReady) window.onAuthReady();
 }
 function logout(){ AUTH.logout(); location.reload(); }
@@ -445,7 +471,7 @@ function openSettings(){
   g("settingsModal").hidden=false;
 }
 async function saveSettings(){
-  const c=AUTH.cred(); const g=id=>document.getElementById(id); const err=g("setErr");
+  const c=AUTH.cred(); if(!c) return; const g=id=>document.getElementById(id); const err=g("setErr");
   const name=g("setName").value.trim(), user=g("setUser").value.trim(), email=g("setEmail").value.trim();
   const cur=g("setCur").value, nw=g("setNew").value;
   if(!name){err.textContent="お名前を入力してください";return;}
@@ -454,15 +480,15 @@ async function saveSettings(){
   if(nw){ if((await hashPw(cur))!==c.hash){err.textContent="現在のパスワードが違います";return;}
     if(nw.length<8){err.textContent="新しいパスワードは8文字以上です";return;} hash=await hashPw(nw); }
   const prevUser=c.username;
-  AUTH.setCred({username:user,name,email,hash});
-  // keep roster + data in sync if the username changed
+  if(user!==prevUser && getAccount(user)){ err.textContent="そのユーザー名は既に使われています";return; }
+  const accts=getAccounts(); delete accts[prevUser]; accts[user]={name,email,hash,role:c.role}; saveAccounts(accts);
   if(user!==prevUser){
     const d=allData(); if(d[prevUser]){ d[user]=d[prevUser]; delete d[prevUser]; _set(K.DATA,d); }
-    removeUser(prevUser);
+    if(c.role==="worker") removeUser(prevUser);
     if(CURRENT_USER===prevUser) CURRENT_USER=user;
-    AUTH.login(user, !!localStorage.getItem(AK.SESS));
+    AUTH.login(user);
   }
-  upsertUser(user,name,email);
+  if(c.role==="worker") upsertUser(user,name,email);
   g("settingsModal").hidden=true;
   setHeaderName(); if(window.afterSettings) window.afterSettings();
 }
@@ -472,7 +498,7 @@ function migrate(){
   try{
     if(localStorage.getItem(K.MIG)) return;
     const legacyRec=_get(LEGACY.REC,null);
-    let owner=null; const c=AUTH.cred(); if(c&&c.username) owner=c.username;
+    const c=_get(AK.CRED,null); let owner=(c&&c.username)?c.username:null;
     if(legacyRec && Object.keys(legacyRec).length){
       owner=owner||"default";
       const ud=_blank();
@@ -480,11 +506,26 @@ function migrate(){
       ud.submits=_get(LEGACY.SUB,{}); ud.contract=_get(LEGACY.CON,{});
       setData(owner,ud);
       upsertUser(owner,(ud.contract&&ud.contract.employee)||(c&&c.name)||owner,(c&&c.email)||"");
-    } else if(owner){ upsertUser(owner,(c&&c.name)||owner,(c&&c.email)||""); }
+    }
     localStorage.setItem(K.MIG,"1");
   }catch(e){}
 }
 migrate();
+/* ===== auth migration: 旧・単一アカウント(kintai_v3_cred)を「管理者アカウント」へ移行 ===== */
+function migrateAuth(){
+  try{
+    if(localStorage.getItem("kintai_v4_authmig")) return;
+    const old=_get(AK.CRED,null); const accts=getAccounts();
+    if(old && old.username && old.hash && !accts[old.username]){
+      accts[old.username]={name:old.name||old.username,email:old.email||"",hash:old.hash,role:"admin"};
+      saveAccounts(accts);
+      let oldSess=null; try{ oldSess=sessionStorage.getItem(AK.OLDSESS)||localStorage.getItem(AK.OLDSESS); }catch(e){}
+      if(oldSess===old.username) setRoleSession("admin", old.username);
+    }
+    localStorage.setItem("kintai_v4_authmig","1");
+  }catch(e){}
+}
+migrateAuth();
 
 /* ===== export ===== */
 global.Kintai = {
@@ -494,7 +535,7 @@ global.Kintai = {
   ymd, todayKey, monthKey, mkLabel, parseKey, daysInMonth, hm, hmInput, fmtDur, fmtH, tsFrom, isPastDay,
   overlap, breakMs, workedMs, nightMs, overtimeMin, requiredBreakMin, state, dayKind,
   checkDay, checkMonth, aggregate, buildCSV, downloadCSV,
-  AK, hashPw, AUTH, authState,
+  AK, hashPw, AUTH, authState, currentRole, getAccounts, getAccount, saveAccounts, hasRoleAccount, upsertWorkerAccount,
   setHeaderName, showAuth, gotoLogin, gotoSignup, doSetup, doLogin, logout, openSettings, saveSettings,
   CONTRACT_FIELDS, getContract, saveContract, contractWage, contractView, openContractPdf, esc, printDoc, printContract, printTimesheet, printSalaryCert,
   getCfg, saveCfg, submitDayFor,

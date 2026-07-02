@@ -45,7 +45,6 @@
       <p>ユーザー名とパスワードを入力してください</p>
       <div class="field"><label>ユーザー名</label><input id="liUser"></div>
       <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <label class="remember"><input type="checkbox" id="liRemember" checked>ログイン状態を保持する</label>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
       <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">＋ 新規登録（アカウント作成）</button></div>
@@ -203,8 +202,9 @@
     <div class="field"><label>お名前（表示名）</label><input id="wkName" placeholder="佐藤 次郎"></div>
     <div class="field"><label>ユーザー名（ログインID）</label><input id="wkUser" placeholder="jiro"></div>
     <div class="field"><label>メールアドレス（任意）</label><input id="wkEmail" type="email"></div>
+    <div class="field"><label>初期パスワード（任意・8文字以上）</label><input id="wkPw" type="password" placeholder="設定すると労働者がすぐログインできます"></div>
     <div class="err-txt" id="wkErr"></div>
-    <p class="note">※労働者はユーザー画面でこのユーザー名を使ってログイン・打刻します。</p>
+    <p class="note">※労働者はユーザー画面で「ユーザー名＋パスワード」でログインして打刻します。パスワード未設定の場合は、労働者がユーザー画面の「新規登録」で同じユーザー名を登録すると紐づきます。</p>
     <div class="modal-actions"><button class="mini" onclick="document.getElementById('workerModal').hidden=true">キャンセル</button><button class="mini solid" onclick="saveWorker()">追加</button></div>
   </div>
 </div>
@@ -279,6 +279,7 @@
 <script>
 /* ===== ADMIN 画面ロジック ===== */
 Object.assign(window, Kintai);
+window.ROLE='admin';             // この画面は「管理者」ロール（労働者とはログインを分離）
 
 let adminMonthDate=new Date();
 let editKey=null;
@@ -295,7 +296,7 @@ function shiftM(n){ adminMonthDate.setMonth(adminMonthDate.getMonth()+n); render
 
 /* ---- 労働者の選択 ---- */
 function ensureAdminUser(){
-  if(!Object.keys(getUsers()).length){ const c=AUTH.cred(); if(c) upsertUser(c.username,c.name,c.email); }
+  // 管理者は名簿(労働者)に自動追加しない（ログイン分離）
   const list=Object.keys(getUsers());
   adminUser=loadSel();
   if(!adminUser || !getUsers()[adminUser]) adminUser=list[0]||null;
@@ -308,14 +309,18 @@ function renderWorkerBar(){
   document.getElementById("workerMail").textContent=adminUser?(userEmail(adminUser)||"メール未登録"):"労働者が未登録です";
 }
 function onWorkerChange(){ adminUser=document.getElementById("workerSel").value; saveSel(adminUser); setCurrentUser(adminUser); renderAdmin(); }
-function openWorker(){ ["wkName","wkUser","wkEmail"].forEach(id=>document.getElementById(id).value=""); document.getElementById("wkErr").textContent=""; document.getElementById("workerModal").hidden=false; }
-function saveWorker(){
+function openWorker(){ ["wkName","wkUser","wkEmail","wkPw"].forEach(id=>document.getElementById(id).value=""); document.getElementById("wkErr").textContent=""; document.getElementById("workerModal").hidden=false; }
+async function saveWorker(){
   const name=document.getElementById("wkName").value.trim(),user=document.getElementById("wkUser").value.trim(),email=document.getElementById("wkEmail").value.trim();
-  const err=document.getElementById("wkErr");
+  const pw=document.getElementById("wkPw").value; const err=document.getElementById("wkErr");
   if(!name){err.textContent="お名前を入力してください";return;}
   if(!/^[A-Za-z0-9_.-]{2,}$/.test(user)){err.textContent="ユーザー名は英数字2文字以上です";return;}
   if(getUsers()[user]){err.textContent="そのユーザー名は既に存在します";return;}
-  upsertUser(user,name,email); adminUser=user; saveSel(user); setCurrentUser(user);
+  const ex=getAccount(user); if(ex && ex.role!=="worker"){err.textContent="そのユーザー名は別の役割で使用中です";return;}
+  if(pw && pw.length<8){err.textContent="パスワードは8文字以上にしてください";return;}
+  upsertUser(user,name,email);
+  if(pw){ await upsertWorkerAccount(user,name,email,pw); }
+  adminUser=user; saveSel(user); setCurrentUser(user);
   document.getElementById("workerModal").hidden=true; renderAdmin();
 }
 function confirmDeleteWorker(){

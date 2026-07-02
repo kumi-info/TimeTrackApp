@@ -45,7 +45,6 @@
       <p>ユーザー名とパスワードを入力してください</p>
       <div class="field"><label>ユーザー名</label><input id="liUser"></div>
       <div class="field"><label>パスワード</label><input id="liPw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <label class="remember"><input type="checkbox" id="liRemember" checked>ログイン状態を保持する</label>
       <div class="err-txt" id="liErr" style="max-width:340px;margin:0 auto 8px;text-align:left"></div>
       <div class="actionrow"><button class="mini solid" onclick="doLogin()">ログイン</button></div>
       <div class="actionrow" style="margin-top:10px"><button class="mini" onclick="gotoSignup()">＋ 新規登録（アカウント作成）</button></div>
@@ -299,6 +298,7 @@
 <script>
 /* ===== USER 画面ロジック ===== */
 Object.assign(window, Kintai);
+window.ROLE='worker';            // この画面は「労働者」ロール（管理者とはログインを分離）
 
 let viewMonthDate=new Date();
 let editKey=null;
